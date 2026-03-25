@@ -1,0 +1,611 @@
+{% extends "base.html" %}
+
+{% block content %}
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"> 
+<div class="min-h-screen bg-gray-50 px-4 py-12">
+  <div class="max-w-7xl mx-auto space-y-12">
+
+    <header class="flex flex-col items-center py-8 gap-3">
+      <h1 class="text-6xl font-extrabold text-gray-900 tracking-tight drop-shadow-lg">Project Flow</h1>
+      <p class="text-xl text-gray-500 font-medium">Define, structure, and manage your work</p>
+    </header>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-8">
+
+      <div class="lg:col-span-4">
+        <div class="bg-white rounded-xl shadow-lg p-6 border border-gray-100 sticky top-4">
+            <h2 class="text-xl font-bold text-indigo-700 mb-6 border-b pb-3">🚀 New Project Definition</h2>
+            
+            <form id="create-project-form" action="{{ url_for('main.create_project') }}" method="POST" class="space-y-4">
+              
+              <div class="space-y-3">
+                
+                <div>
+                  <label for="name" class="block text-sm font-semibold text-gray-700 mb-1">Project Name</label>
+                  <input type="text" name="name" id="name" required autocomplete="off"
+                    class="w-full rounded-lg border border-gray-300 p-2 text-sm shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition duration-150" />
+                </div>
+                <div>
+                  <label for="description" class="block text-sm font-semibold text-gray-700 mb-1">Description</label>
+                  <textarea name="description" id="description" rows="2" autocomplete="off"
+                    class="w-full rounded-lg border border-gray-300 p-2 text-sm shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition duration-150"></textarea>
+                </div>
+              </div>
+
+              <section id="modules-container" class="space-y-3 pt-3 border-t border-gray-200">
+                <h3 class="text-md font-bold text-gray-800 flex items-center gap-2">Project Modules</h3>
+                
+                <div class="module-group rounded-lg bg-indigo-50 p-3 border border-indigo-200 space-y-2">
+                  
+                  <div class="flex items-center gap-2">
+                    <label for="module-name-0" class="text-xs font-semibold text-indigo-700 min-w-[70px] flex-shrink-0">Module</label>
+                    <input type="text" name="module_name_0" id="module-name-0" required
+                      class="flex-grow rounded-md border border-indigo-300 p-1.5 text-xs shadow-sm focus:ring-indigo-400 focus:border-indigo-400 transition" />
+                    <button type="button" class="remove-module-btn p-1 text-red-600 hover:bg-red-100 rounded transition" title="Remove Module">
+                         <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm6 0a1 1 0 10-2 0v6a1 1 0 102 0V8z" clip-rule="evenodd"></path></svg>
+                    </button>
+                  </div>
+                  
+                  <div class="sub-modules-container space-y-2 ml-2 pl-2 border-l border-indigo-300">
+                    <p class="text-xs font-semibold text-gray-600 pt-1">Sub-modules:</p>
+                    <div class="flex items-center gap-2">
+                      <label for="sub-module-name-0-0" class="text-xs font-medium text-gray-500 min-w-[60px] flex-shrink-0">Sub-module</label>
+                      <input type="text" name="sub_module_name_0_0" id="sub-module-name-0-0" required
+                        class="flex-grow rounded-md border border-gray-300 p-1.5 text-xs shadow-sm focus:ring-pink-400 focus:border-pink-400 transition" />
+                      <button type="button" class="remove-sub-module-btn p-1 text-xs rounded-full text-red-600 hover:bg-red-100 transition" title="Remove Sub-module">
+                          <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm6 0a1 1 0 10-2 0v6a1 1 0 102 0V8z" clip-rule="evenodd"></path></svg>
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div class="flex justify-end pt-1">
+                      <button type="button" class="add-sub-module-btn px-2.5 py-1 text-xs rounded-md bg-pink-500 text-white font-semibold hover:bg-pink-600 shadow-sm transition">+ Sub-module</button>
+                  </div>
+                </div>
+              </section>
+
+              <div class="pt-2 space-y-3">
+                  <button type="button" id="add-module-btn"
+                      class="w-full py-2.5 rounded-md border-2 border-indigo-500 text-indigo-700 font-bold text-sm hover:bg-indigo-50 transition duration-150 shadow-sm">
+                      + Add Another Module
+                  </button>
+                  <button type="submit"
+                      class="w-full py-3 rounded-md bg-indigo-700 text-white font-extrabold text-lg hover:bg-indigo-800 shadow-lg transition duration-150">
+                      Create Project
+                  </button>
+              </div>
+            </form>
+        </div>
+      </div>
+
+      <div class="lg:col-span-8">
+        <section class="mt-0">
+          <h2 class="text-3xl font-extrabold text-gray-900 mb-8 border-b pb-3">Existing Projects</h2>
+          {% if projects %}
+          <ul id="project-list" class="grid md:grid-cols-2 gap-6">
+            {% for project in projects %}
+            <li class="bg-white rounded-xl border border-gray-200 shadow-lg p-5 space-y-4 h-full flex flex-col transition duration-300 hover:shadow-xl hover:border-indigo-400" 
+                data-project-id="{{ project.id }}" data-project-name="{{ project.name }}" data-project-desc="{{ project.description }}">
+              
+              <div class="mb-1 border-b pb-2 flex-shrink-0">
+                <h3 class="text-xl font-bold text-indigo-700 mb-0.5">{{ project.name }}</h3>
+                <p class="text-xs text-gray-500">{{ project.description }}</p>
+              </div>
+              
+              {% if project.modules %}
+              <div class="flex-grow pt-1 overflow-y-auto max-h-48 pr-2 custom-scrollbar"> 
+                <h4 class="font-bold text-gray-700 mb-3 text-sm border-b pb-1">Modules:</h4>
+                <ul class="space-y-3">
+                  {% for module in project.modules %}
+                  <li class="rounded-md bg-white border border-gray-200 p-3 shadow-sm" data-module-id="{{ module.id }}" data-module-name="{{ module.name }}">
+                    
+                    <div class="flex justify-between items-center mb-2">
+                      <span class="font-semibold text-gray-800 text-sm flex-grow">{{ module.name }}</span>
+                      <div class="flex gap-2 text-xs flex-shrink-0">
+                        <button class="add-sub-module-to-existing-btn text-pink-500 hover:text-pink-700 transition p-0.5"
+                          data-module-id="{{ module.id }}" data-module-name="{{ module.name }}" title="Add Sub-module" data-bs-toggle="modal" data-bs-target="#addSubModuleModal">
+                          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"></path></svg>
+                        </button>
+                        <button class="edit-module-btn text-indigo-500 hover:text-indigo-700 transition p-0.5"
+                          data-module-id="{{ module.id }}" data-module-name="{{ module.name }}" title="Edit Module" data-bs-toggle="modal" data-bs-target="#editModuleModal">
+                          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zm-5.04 5.04l-7.276 7.276a.5.5 0 00-.14.24l-1 4a.5.5 0 00.61.61l4-1a.5.5 0 00.24-.14l7.276-7.276-2.828-2.828z"></path></svg>
+                        </button>
+                        <button class="delete-module-btn text-red-500 hover:text-red-700 transition p-0.5"
+                          data-module-id="{{ module.id }}" data-module-name="{{ module.name }}" title="Delete Module" data-bs-toggle="modal" data-bs-target="#confirmationModal" data-action-type="delete-module">
+                          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm6 0a1 1 0 10-2 0v6a1 1 0 102 0V8z" clip-rule="evenodd"></path></svg>
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {% if module.sub_modules %}
+                    <ul class="ml-2 mt-2 space-y-1 text-xs text-gray-600 border-l-2 border-dashed border-gray-200 pl-3 pt-1">
+                      {% for sub_module in module.sub_modules %}
+                      <li class="flex justify-between items-center py-0.5 group" data-sub-module-id="{{ sub_module.id }}" data-sub-module-name="{{ sub_module.name }}">
+                        <span class="flex items-center gap-1">
+                            <span class="inline-block w-1.5 h-1.5 bg-pink-400 rounded-full"></span>
+                            {{ sub_module.name }}
+                        </span>
+                        <div class="flex gap-1.5 text-xs opacity-0 group-hover:opacity-100 transition duration-200">
+                          <button class="edit-sub-module-btn text-indigo-500 hover:text-indigo-700" title="Edit Sub-module" data-bs-toggle="modal" data-bs-target="#editSubModuleModal">Edit</button>
+                          <button class="delete-sub-module-btn text-red-500 hover:text-red-700" title="Delete Sub-module" data-bs-toggle="modal" data-bs-target="#confirmationModal" data-action-type="delete-sub-module">Del</button>
+                        </div>
+                      </li>
+                      {% endfor %}
+                    </ul>
+                    {% endif %}
+                  </li>
+                  {% endfor %}
+                </ul>
+              </div>
+              {% endif %}
+
+              <nav class="flex justify-end gap-3 pt-4 border-t border-gray-100 flex-shrink-0">
+                  <button class="add-module-to-existing-btn px-3 py-1.5 text-xs rounded-md text-pink-600 bg-pink-100 hover:bg-pink-200 font-semibold transition"
+                    data-project-id="{{ project.id }}" data-project-name="{{ project.name }}" title="Add Module" data-bs-toggle="modal" data-bs-target="#addModuleModal">
+                    + Add Module
+                  </button>
+                  <button class="edit-project-btn px-3 py-1.5 text-xs rounded-md text-indigo-600 bg-indigo-100 hover:bg-indigo-200 font-semibold transition"
+                    data-project-id="{{ project.id }}" data-project-name="{{ project.name }}" data-project-desc="{{ project.description }}" data-bs-toggle="modal" data-bs-target="#editProjectModal">Edit Project</button>
+                  <button class="delete-project-btn px-3 py-1.5 text-xs rounded-md text-red-600 bg-red-100 hover:bg-red-200 font-semibold transition"
+                    data-project-id="{{ project.id }}" data-bs-toggle="modal" data-bs-target="#confirmationModal" data-action-type="delete-project">Delete Project</button>
+              </nav>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="text-center text-gray-400 text-lg mt-12">No projects have been created yet. Use the form on the left to get started!</p>
+          {% endif %}
+        </section>
+      </div>
+
+    </div>
+    </div>
+
+  <div class="modal" id="addModuleModal" tabindex="-1" aria-labelledby="addModuleModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered max-w-xs">
+      <div class="modal-content rounded-lg shadow-xl border border-gray-100">
+        <div class="modal-header border-b border-gray-200 p-3 flex justify-between items-center">
+          <h5 class="modal-title text-base font-bold text-pink-700" id="addModuleModalLabel">Add Module to <span id="project-name-for-add-module" class="text-indigo-500"></span></h5>
+          <button type="button" class="btn-close text-gray-500 hover:text-gray-700 text-sm" data-bs-dismiss="modal" aria-label="Close">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+          </button>
+        </div>
+        <form id="addModuleForm" method="POST" action="" class="p-4 space-y-3">
+          <div>
+            <label for="add-module-name" class="block text-xs font-medium text-gray-700">New Module Name</label>
+            <input type="text" name="name" id="add-module-name" required class="block w-full rounded-md border border-gray-300 p-1.5 text-sm focus:ring-pink-500 focus:border-pink-500" />
+          </div>
+          <div class="modal-footer flex justify-end gap-2 pt-2 border-t border-gray-100 -mx-4 px-4">
+            <button type="button" class="py-1.5 px-3 rounded-md text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="py-1.5 px-3 rounded-md text-xs font-medium text-white bg-pink-600 hover:bg-pink-700 transition">Add Module</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="addSubModuleModal" tabindex="-1" aria-labelledby="addSubModuleModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered max-w-xs">
+      <div class="modal-content rounded-lg shadow-xl border border-gray-100">
+        <div class="modal-header border-b border-gray-200 p-3 flex justify-between items-center">
+          <h5 class="modal-title text-base font-bold text-indigo-700" id="addSubModuleModalLabel">Add Sub-module to <span id="module-name-for-add" class="text-pink-500"></span></h5>
+          <button type="button" class="btn-close text-gray-500 hover:text-gray-700 text-sm" data-bs-dismiss="modal" aria-label="Close">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+          </button>
+        </div>
+        <form id="addSubModuleForm" method="POST" action="" class="p-4 space-y-3">
+          <div>
+            <label for="add-sub-module-name" class="block text-xs font-medium text-gray-700">New Sub-module Name</label>
+            <input type="text" name="name" id="add-sub-module-name" required class="block w-full rounded-md border border-gray-300 p-1.5 text-sm focus:ring-indigo-500 focus:border-indigo-500" />
+          </div>
+          <div class="modal-footer flex justify-end gap-2 pt-2 border-t border-gray-100 -mx-4 px-4">
+            <button type="button" class="py-1.5 px-3 rounded-md text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="py-1.5 px-3 rounded-md text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition">Add</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  
+  <div class="modal" id="editProjectModal" tabindex="-1" aria-labelledby="editProjectModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered max-w-sm">
+      <div class="modal-content rounded-lg shadow-xl border border-gray-100">
+        <div class="modal-header border-b border-gray-200 p-3 flex justify-between items-center">
+          <h5 class="modal-title text-base font-bold text-indigo-700" id="editProjectModalLabel">Edit Project Details</h5>
+          <button type="button" class="btn-close text-gray-500 hover:text-gray-700 text-sm" data-bs-dismiss="modal" aria-label="Close">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+          </button>
+        </div>
+        <form id="editProjectForm" method="POST" action="" class="p-4 space-y-3">
+          <div>
+            <label for="edit-project-name" class="block text-xs font-medium text-gray-700">Project Name</label>
+            <input type="text" name="name" id="edit-project-name" required class="block w-full rounded-md border border-gray-300 p-1.5 text-sm focus:ring-indigo-500 focus:border-indigo-500" />
+          </div>
+          <div>
+            <label for="edit-project-description" class="block text-xs font-medium text-gray-700">Description</label>
+            <textarea name="description" id="edit-project-description" rows="2" class="block w-full rounded-md border border-gray-300 p-1.5 text-sm focus:ring-indigo-500 focus:border-indigo-500"></textarea>
+          </div>
+          <div class="modal-footer flex justify-end gap-2 pt-2 border-t border-gray-100 -mx-4 px-4">
+            <button type="button" class="py-1.5 px-3 rounded-md text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="py-1.5 px-3 rounded-md text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition">Save Changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  
+  <div class="modal" id="editModuleModal" tabindex="-1" aria-labelledby="editModuleModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered max-w-xs">
+      <div class="modal-content rounded-lg shadow-xl border border-gray-100">
+        <div class="modal-header border-b border-gray-200 p-3 flex justify-between items-center">
+          <h5 class="modal-title text-base font-bold text-indigo-700" id="editModuleModalLabel">Edit Module Name</h5>
+          <button type="button" class="btn-close text-gray-500 hover:text-gray-700 text-sm" data-bs-dismiss="modal" aria-label="Close">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+          </button>
+        </div>
+        <form id="editModuleForm" method="POST" action="" class="p-4 space-y-3">
+          <div>
+            <label for="edit-module-name" class="block text-xs font-medium text-gray-700">Module Name</label>
+            <input type="text" name="name" id="edit-module-name" required class="block w-full rounded-md border border-gray-300 p-1.5 text-sm focus:ring-indigo-500 focus:border-indigo-500" />
+          </div>
+          <div class="modal-footer flex justify-end gap-2 pt-2 border-t border-gray-100 -mx-4 px-4">
+            <button type="button" class="py-1.5 px-3 rounded-md text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="py-1.5 px-3 rounded-md text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition">Save Changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  
+  <div class="modal" id="editSubModuleModal" tabindex="-1" aria-labelledby="editSubModuleModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered max-w-xs">
+      <div class="modal-content rounded-lg shadow-xl border border-gray-100">
+        <div class="modal-header border-b border-gray-200 p-3 flex justify-between items-center">
+          <h5 class="modal-title text-base font-bold text-indigo-700" id="editSubModuleModalLabel">Edit Sub-module Name</h5>
+          <button type="button" class="btn-close text-gray-500 hover:text-gray-700 text-sm" data-bs-dismiss="modal" aria-label="Close">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+          </button>
+        </div>
+        <form id="editSubModuleForm" method="POST" action="" class="p-4 space-y-3">
+          <div>
+            <label for="edit-sub-module-name" class="block text-xs font-medium text-gray-700">Sub-module Name</label>
+            <input type="text" name="name" id="edit-sub-module-name" required class="block w-full rounded-md border border-gray-300 p-1.5 text-sm focus:ring-indigo-500 focus:border-indigo-500" />
+          </div>
+          <div class="modal-footer flex justify-end gap-2 pt-2 border-t border-gray-100 -mx-4 px-4">
+            <button type="button" class="py-1.5 px-3 rounded-md text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="py-1.5 px-3 rounded-md text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition">Save Changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  
+  
+  
+  <div class="modal" id="confirmationModal" tabindex="-1" aria-labelledby="confirmationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered max-w-xs">
+      <div class="modal-content rounded-lg shadow-xl border border-gray-100">
+        <div class="modal-header border-b border-gray-200 p-3 flex justify-between items-center">
+          <h5 class="modal-title text-base font-bold text-red-600" id="confirmationModalLabel">Confirm Action</h5>
+          <button type="button" class="btn-close text-gray-500 hover:text-gray-700 text-sm" data-bs-dismiss="modal" aria-label="Close">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+          </button>
+        </div>
+        <div class="modal-body p-4 text-xs text-gray-700" id="confirmationMessage">
+          Are you sure you want to perform this action? This action cannot be undone.
+        </div>
+        <div class="modal-footer flex justify-end gap-2 pt-2 border-t border-gray-100 -mx-4 px-4">
+          <button type="button" class="py-1.5 px-3 rounded-md text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="py-1.5 px-3 rounded-md text-xs font-medium text-white bg-red-600 hover:bg-red-700 transition" id="confirmDeleteBtn">Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+/* For WebKit browsers (Chrome, Safari) */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 3px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #aaa;
+}
+</style>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+  let confirmModal, editProjectModal, editModuleModal, editSubModuleModal, addSubModuleModal, addModuleModal;
+  
+  /**
+   * Sets the action URL for the modal forms. 
+   * NOTE: Ensure these paths match your Flask/Python routes exactly!
+   */
+  function setFormAction(formId, routeName, id) {
+    const form = document.getElementById(formId);
+    let newPath = '';
+    // Placeholder URLs (Adjust 'admin/' prefix if necessary)
+    if (routeName === 'edit_project')
+      newPath = `/admin/edit_project/${id}`; 
+    else if (routeName === 'edit_module')
+      newPath = `/admin/edit_module/${id}`; 
+    else if (routeName === 'edit_submodule')
+      newPath = `/admin/edit_submodule/${id}`; 
+    else if (routeName === 'add_module_to_project') // <-- NEW ENDPOINT
+      newPath = `/admin/add_module_to_project/${id}`;
+    else if (routeName === 'add_submodule_to_module')
+      newPath = `/admin/add_submodule_to_module/${id}`; 
+    
+    form.action = newPath;
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    let moduleCount = document.querySelectorAll('#modules-container .module-group').length;
+    
+    // Initialize modals manually since we use the JS API (e.g., confirmModal.hide())
+    const modalOptions = { backdrop: true, keyboard: true, focus: true };
+    confirmModal = new bootstrap.Modal(document.getElementById('confirmationModal'), modalOptions);
+    editProjectModal = new bootstrap.Modal(document.getElementById('editProjectModal'), modalOptions);
+    editModuleModal = new bootstrap.Modal(document.getElementById('editModuleModal'), modalOptions);
+    editSubModuleModal = new bootstrap.Modal(document.getElementById('editSubModuleModal'), modalOptions);
+    addSubModuleModal = new bootstrap.Modal(document.getElementById('addSubModuleModal'), modalOptions);
+    addModuleModal = new bootstrap.Modal(document.getElementById('addModuleModal'), modalOptions); // <-- NEW MODAL INIT
+
+    // ************* SCROLL/MODAL FIX LOGIC *************
+    document.querySelectorAll('.modal').forEach(modalEl => {
+        modalEl.addEventListener('show.bs.modal', function () {
+            setTimeout(() => {
+                document.body.style.overflow = ''; 
+                document.body.style.paddingRight = ''; 
+                const backdrop = document.querySelector('.modal-backdrop');
+                if (backdrop) backdrop.style.position = 'fixed'; 
+            }, 50); 
+        });
+        modalEl.addEventListener('hidden.bs.modal', function () {
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+        });
+    });
+    // ************* END SCROLL FIX LOGIC *************
+
+    const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+    let pendingDelete = null; // Stores the context of the item to be deleted
+
+    // Centralized Click Handler for Action Buttons (Edit/Delete/Add)
+    document.querySelector('.max-w-7xl').addEventListener('click', function (e) {
+      const t = e.target.closest('button');
+      if (!t) return;
+
+      // --- ADD MODULE/SUB-MODULE TRIGGERS ---
+      if (t.classList.contains('add-module-to-existing-btn')) {
+        // Add Module
+        document.getElementById('add-module-name').value = '';
+        document.getElementById('project-name-for-add-module').textContent = t.dataset.projectName;
+        setFormAction('addModuleForm', 'add_module_to_project', t.dataset.projectId);
+        // Modal is shown via data-bs-toggle
+      }
+      else if (t.classList.contains('add-sub-module-to-existing-btn')) {
+        // Add Sub-module
+        document.getElementById('add-sub-module-name').value = '';
+        document.getElementById('module-name-for-add').textContent = t.dataset.moduleName;
+        setFormAction('addSubModuleForm', 'add_submodule_to_module', t.dataset.moduleId);
+        // Modal is shown via data-bs-toggle
+      }
+
+      // --- EDIT MODAL TRIGGERS (Populate data and set form action) ---
+      else if (t.classList.contains('edit-project-btn')) {
+        // Project Edit
+        setFormAction('editProjectForm', 'edit_project', t.dataset.projectId);
+        document.getElementById('edit-project-name').value = t.dataset.projectName;
+        document.getElementById('edit-project-description').value = t.dataset.projectDesc || ''; 
+        // Modal is shown via data-bs-toggle
+      }
+      else if (t.classList.contains('edit-module-btn')) {
+        // Module Edit
+        setFormAction('editModuleForm', 'edit_module', t.dataset.moduleId);
+        document.getElementById('edit-module-name').value = t.dataset.moduleName;
+        // Modal is shown via data-bs-toggle
+      }
+      else if (t.classList.contains('edit-sub-module-btn')) {
+        // Sub-module Edit
+        const subModuleLi = t.closest('li[data-sub-module-id]');
+        const subModuleId = subModuleLi ? subModuleLi.dataset.subModuleId : null;
+        const subModuleName = subModuleLi ? subModuleLi.dataset.subModuleName : '';
+
+        if (subModuleId) {
+            setFormAction('editSubModuleForm', 'edit_submodule', subModuleId);
+            document.getElementById('edit-sub-module-name').value = subModuleName;
+            // Modal is shown via data-bs-toggle
+        } else {
+            console.error('Sub-module ID not found for editing.');
+        }
+      }
+      
+      // --- DELETE CONFIRMATION TRIGGER (Sets up the pendingDelete object) ---
+      else if (t.dataset.actionType && t.dataset.actionType.startsWith('delete')) {
+        
+        let endpoint = null, id = null, msg = '';
+        const actionType = t.dataset.actionType;
+        let elementToRemove = null;
+        
+        // Find the element details and check for children
+        if (actionType === 'delete-project') {
+          const projectLi = t.closest('li[data-project-id]');
+          if (projectLi.querySelector('li[data-module-id]')) {
+              alert('🛑 Cannot delete the project. Please delete all associated modules first.');
+              return; 
+          }
+          id = projectLi.dataset.projectId;
+          endpoint = `/delete_project/${id}`; // **Check Flask path**
+          msg = `Are you sure you want to delete Project <b>${projectLi.dataset.projectName || 'this project'}</b>?`;
+          elementToRemove = projectLi;
+
+        } else if (actionType === 'delete-module') {
+          const moduleLi = t.closest('li[data-module-id]');
+          if (moduleLi.querySelector('li[data-sub-module-id]')) {
+              alert('🛑 Cannot delete the module. Please delete all associated sub-modules first.');
+              return; 
+          }
+          id = moduleLi.dataset.moduleId;
+          endpoint = `/admin/delete_module/${id}`; // **Check Flask path**
+          msg = `Are you sure you want to delete Module <b>${moduleLi.dataset.moduleName || 'this module'}</b>?`;
+          elementToRemove = moduleLi;
+          
+        } else if (actionType === 'delete-sub-module') {
+          const subModuleLi = t.closest('li[data-sub-module-id]');
+          id = subModuleLi ? subModuleLi.dataset.subModuleId : null;
+          endpoint = `/admin/delete_submodule/${id}`; // **Check Flask path**
+          msg = `Are you sure you want to delete Sub-Module <b>${subModuleLi ? subModuleLi.dataset.subModuleName : 'this sub-module'}</b>?`;
+          elementToRemove = subModuleLi;
+        }
+        
+        if (endpoint && id) {
+          pendingDelete = { 
+              endpoint, 
+              element: elementToRemove
+          }; 
+          document.getElementById('confirmationMessage').innerHTML = msg + ' This action cannot be undone.';
+          // Modal is shown via data-bs-toggle
+        }
+      }
+    });
+
+    // --- CONFIRM DELETE EXECUTION (AJAX Logic) ---
+    confirmDeleteBtn.addEventListener('click', function () {
+      if (pendingDelete) {
+        const { endpoint, element } = pendingDelete;
+        confirmModal.hide();
+
+        let fetchOptions = {
+            method: 'POST', // Using POST, which is typical for form submissions
+        };
+        
+        // Send the AJAX request
+        fetch(endpoint, fetchOptions)
+        .then(response => {
+            if (response.ok) {
+                // If successful, reload the page for a clean UI update
+                location.reload(); 
+            } else {
+                // If server returns an error code (4xx, 5xx)
+                throw new Error('Server deletion failed: ' + response.statusText);
+            }
+        })
+        .catch(error => {
+            console.error('Deletion error:', error);
+            alert('An error occurred during deletion. Please check the console for details.');
+        })
+        .finally(() => {
+            pendingDelete = null;
+        });
+      }
+    });
+
+    // --- Dynamic Form Logic for CREATE PROJECT (Add/Remove Modules/Sub-modules) ---
+
+    function updateModuleIndices() {
+        document.querySelectorAll('#modules-container .module-group').forEach((moduleGroup, moduleIndex) => {
+            const moduleNameInput = moduleGroup.querySelector('input[name^="module_name_"]');
+            if (moduleNameInput) {
+                moduleNameInput.name = `module_name_${moduleIndex}`;
+                moduleNameInput.id = `module-name-${moduleIndex}`;
+            }
+            const subModuleContainer = moduleGroup.querySelector('.sub-modules-container');
+            if (subModuleContainer) {
+                subModuleContainer.querySelectorAll('div.flex').forEach((subModuleDiv, subModuleIndex) => {
+                    const subModuleInput = subModuleDiv.querySelector('input[name^="sub_module_name_"]');
+                    if(subModuleInput) {
+                        subModuleInput.name = `sub_module_name_${moduleIndex}_${subModuleIndex}`;
+                        subModuleInput.id = `sub-module-name-${moduleIndex}-${subModuleIndex}`;
+                    }
+                });
+            }
+        });
+        moduleCount = document.querySelectorAll('#modules-container .module-group').length;
+    }
+    
+    function addSubModule(moduleContainer, moduleIndex) {
+      const subModulesContainer = moduleContainer.querySelector('.sub-modules-container');
+      let subModuleCount = subModulesContainer.querySelectorAll('div.flex').length;
+      const subModuleDiv = document.createElement('div');
+      subModuleDiv.classList.add('flex', 'items-center', 'gap-2');
+      subModuleDiv.innerHTML = `
+        <label for="sub-module-name-${moduleIndex}-${subModuleCount}" class="text-xs font-medium text-gray-500 min-w-[60px] flex-shrink-0">Sub-module</label>
+        <input type="text" name="sub_module_name_${moduleIndex}_${subModuleCount}" id="sub-module-name-${moduleIndex}-${subModuleCount}" required class="flex-grow rounded-md border border-gray-300 p-1.5 text-xs shadow-sm focus:ring-pink-400 focus:border-pink-400 transition" />
+        <button type="button" class="remove-sub-module-btn p-1 text-xs rounded-full text-red-600 hover:bg-red-100 transition" title="Remove Sub-module">
+            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm6 0a1 1 0 10-2 0v6a1 1 0 102 0V8z" clip-rule="evenodd"></path></svg>
+        </button>`;
+      subModulesContainer.appendChild(subModuleDiv);
+      updateModuleIndices();
+    }
+    
+    function addModule() {
+      const modulesContainer = document.getElementById('modules-container');
+      const newIndex = moduleCount;
+      
+      const moduleDiv = document.createElement('div');
+      moduleDiv.classList.add('module-group', 'rounded-lg', 'bg-indigo-50', 'p-3', 'border', 'border-indigo-200', 'space-y-2');
+      moduleDiv.innerHTML = `
+        <div class="flex items-center gap-2">
+          <label for="module-name-${newIndex}" class="text-xs font-semibold text-indigo-700 min-w-[70px] flex-shrink-0">Module</label>
+          <input type="text" name="module_name_${newIndex}" id="module-name-${newIndex}" required
+            class="flex-grow rounded-md border border-indigo-300 p-1.5 text-xs shadow-sm focus:ring-indigo-400 focus:border-indigo-400 transition" />
+          <button type="button" class="remove-module-btn p-1 text-red-600 hover:bg-red-100 rounded transition" title="Remove Module">
+             <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm6 0a1 1 0 10-2 0v6a1 1 0 102 0V8z" clip-rule="evenodd"></path></svg>
+          </button>
+        </div>
+        <div class="sub-modules-container space-y-2 ml-2 pl-2 border-l border-indigo-300">
+            <p class="text-xs font-semibold text-gray-600 pt-1">Sub-modules:</p>
+          <div class="flex items-center gap-2">
+            <label for="sub-module-name-${newIndex}-0" class="text-xs font-medium text-gray-500 min-w-[60px] flex-shrink-0">Sub-module</label>
+            <input type="text" name="sub_module_name_${newIndex}_0" id="sub-module-name-${newIndex}-0" required class="flex-grow rounded-md border border-gray-300 p-1.5 text-xs shadow-sm focus:ring-pink-400 focus:border-pink-400 transition" />
+            <button type="button" class="remove-sub-module-btn p-1 text-xs rounded-full text-red-600 hover:bg-red-100 transition" title="Remove Sub-module">
+                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm6 0a1 1 0 10-2 0v6a1 1 0 102 0V8z" clip-rule="evenodd"></path></svg>
+            </button>
+          </div>
+        </div>
+        <div class="flex justify-end pt-1">
+            <button type="button" class="add-sub-module-btn px-2.5 py-1 text-xs rounded-md bg-pink-500 text-white font-semibold hover:bg-pink-600 shadow-sm transition">+ Sub-module</button>
+        </div>
+      `;
+      modulesContainer.appendChild(moduleDiv);
+      updateModuleIndices();
+    }
+    
+    document.getElementById('add-module-btn').addEventListener('click', addModule);
+    
+    document.getElementById('modules-container').addEventListener('click', function (e) {
+      const t = e.target.closest('button');
+      if (!t) return;
+      
+      if (t.classList.contains('add-sub-module-btn')) {
+        const moduleContainer = t.closest('.module-group');
+        const moduleIndex = Array.from(document.querySelectorAll('#modules-container .module-group')).indexOf(moduleContainer);
+        addSubModule(moduleContainer, moduleIndex);
+      }
+      if (t.classList.contains('remove-sub-module-btn')) {
+        t.closest('div.flex').remove();
+        updateModuleIndices();
+      }
+      if (t.classList.contains('remove-module-btn')) {
+        t.closest('.module-group').remove();
+        updateModuleIndices();
+      }
+    });
+  });
+</script>
+{% endblock %}

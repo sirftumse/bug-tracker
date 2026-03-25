@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Create New Issue{% endblock %}
+
+{% block content %}
+
+<div class="container mt-5">
+<h2 class="mb-4">Create New Issue</h2>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<div class="card p-4 shadow-lg">
+    <form action="{{ url_for('main.add_issue') }}" method="POST">
+        
+        <div class="mb-3">
+            <label for="title" class="form-label font-weight-bold">Issue Title</label>
+            <input type="text" class="form-control" id="title" name="title" required placeholder="e.g., 'API endpoint returns 500 error on POST'">
+        </div>
+
+        <div class="mb-3">
+            <label for="description" class="form-label font-weight-bold">Description</label>
+            <textarea class="form-control" id="description" name="description" rows="5" required placeholder="Provide detailed steps to reproduce the issue..."></textarea>
+        </div>
+
+        <div class="row">
+            <!-- Status Dropdown: Populated with filtered statuses -->
+            <div class="col-md-4 mb-3">
+                <label for="status" class="form-label font-weight-bold">Status</label>
+                <select class="form-control" id="status" name="status" required>
+                    <option value="">-- Select Status --</option>
+                    {% for status in statuses %}
+                    <option value="{{ status.id }}">{{ status.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Priority Dropdown -->
+            <div class="col-md-4 mb-3">
+                <label for="priority" class="form-label font-weight-bold">Priority</label>
+                <select class="form-control" id="priority" name="priority" required>
+                    <option value="">-- Select Priority --</option>
+                    {% for priority in priorities %}
+                    <option value="{{ priority.id }}">{{ priority.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Assignee Dropdown -->
+            <div class="col-md-4 mb-3">
+                <label for="assignee" class="form-label font-weight-bold">Assignee</label>
+                <select class="form-control" id="assignee" name="assignee" required>
+                    <option value="">-- Select Assignee --</option>
+                    {% for assignee in assignees %}
+                    <option value="{{ assignee.id }}">{{ assignee.name }} ({{ assignee.role.name }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-success btn-lg w-100 mt-3">Submit New Issue</button>
+    </form>
+</div>
+
+</div>
+{% endblock %}

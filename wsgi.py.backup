@@ -1,0 +1,8 @@
+# This is the entry point for Gunicorn.
+# Gunicorn will look for a variable named 'app' in this file.
+from app import create_app
+from app.config import Config
+
+# Create the Flask application instance by calling the factory function
+# and passing the configuration object directly.
+app = create_app(Config)

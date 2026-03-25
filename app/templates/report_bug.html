@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} - Bug Tracker</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        body {
+            background-color: #f0f2f5;
+            font-family: 'Arial', sans-serif;
+        }
+        .navbar {
+            box-shadow: 0 2px 4px rgba(0,0,0,.08);
+        }
+        .card {
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,.1);
+            border: none;
+        }
+        .form-section {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #e0e0e0;
+            transition: all 0.3s ease;
+        }
+        .form-section:hover {
+            box-shadow: 0 6px 12px rgba(0,0,0,.15);
+        }
+        .btn-primary, .btn-secondary {
+            border-radius: 50px;
+            padding: 10px 25px;
+            font-weight: bold;
+        }
+        .btn-primary {
+            background-color: #007bff;
+            border-color: #007bff;
+        }
+        .btn-secondary {
+            background-color: #6c757d;
+            border-color: #6c757d;
+        }
+        .btn-danger {
+            border-radius: 50%;
+            width: 38px;
+            height: 38px;
+            padding: 0;
+            line-height: 38px;
+        }
+        .notification-card {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 1050;
+            width: 350px;
+            animation: fadeInOut 8s forwards;
+        }
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateY(20px); }
+            10% { opacity: 1; transform: translateY(0); }
+            90% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(20px); }
+        }
+        .modal-dialog {
+            max-width: 400px;
+        }
+        .modal-content {
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0,0,0,.15);
+        }
+        .badge-status {
+            font-size: 0.8rem;
+            padding: 0.3rem 0.6rem;
+        }
+        .release-info {
+            font-size: 0.85rem;
+            color: #6c757d;
+            margin-top: 0.25rem;
+        }
+        .no-active-releases {
+            text-align: center;
+            padding: 40px 20px;
+            background-color: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,.1);
+            margin: 20px 0;
+        }
+        .no-active-releases i {
+            font-size: 4rem;
+            color: #ffc107;
+            margin-bottom: 20px;
+        }
+        .no-active-releases h4 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .no-active-releases p {
+            color: #666;
+            margin-bottom: 0;
+        }
+        .workflow-guide {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .workflow-guide small {
+            color: rgba(255,255,255,0.9);
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('main.dashboard') }}">
+                <i class="fas fa-bug me-2"></i>Bug Tracker
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('main.dashboard') }}">
+                            <i class="fas fa-tachometer-alt me-1"></i>Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" aria-current="page" href="{{ url_for('main.report_bug') }}">
+                            <i class="fas fa-bug me-1"></i>Report Bug
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('main.view_all_bugs') }}">
+                            <i class="fas fa-list me-1"></i>View Bugs
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('main.release_build') }}">
+                            <i class="fas fa-rocket me-1"></i>Releases
+                        </a>
+                    </li>
+                </ul>
+                <span class="navbar-text">
+                    <i class="fas fa-user me-1"></i>Logged in as: <strong>{{ user.username }}</strong> 
+                    <span class="badge bg-info ms-2">{{ user.role.name }}</span>
+                </span>
+                <a class="btn btn-outline-light ms-3" href="{{ url_for('main.logout') }}">
+                    <i class="fas fa-sign-out-alt me-1"></i>Logout
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h2 class="mb-0">
+                        <i class="fas fa-bug text-primary me-2"></i>
+                        Report Bugs
+                    </h2>
+                    <div>
+                        <span class="badge bg-info p-2">
+                            <i class="fas fa-info-circle me-1"></i>
+                            You can only report bugs on releases that have been started
+                        </span>
+                    </div>
+                </div>
+                <p class="text-muted mt-2">Fill in the details below to report one or multiple bugs</p>
+            </div>
+        </div>
+
+        <!-- Workflow Guide -->
+        <div class="workflow-guide mb-4">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-play-circle fa-2x me-3"></i>
+                <div>
+                    <strong>Testing Workflow:</strong> 
+                    <small>First click "Start Testing" on a release in your dashboard, then you can report bugs here. Only releases with testing started will appear in the dropdown.</small>
+                </div>
+            </div>
+        </div>
+
+        <div id="flash-messages" class="mb-3">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            <i class="fas {% if category == 'success' %}fa-check-circle{% elif category == 'danger' %}fa-exclamation-circle{% else %}fa-info-circle{% endif %} me-2"></i>
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+        </div>
+
+        <!-- Message when no active releases are available for testing -->
+        {% if server_data.allReleases|length == 0 %}
+        <div class="no-active-releases">
+            <i class="fas fa-clock"></i>
+            <h4>No Releases Available for Testing</h4>
+            <p>There are currently no releases where testing has been started.</p>
+            <p class="text-muted small">To start testing, go to your dashboard and click "Start Testing" on an active release.</p>
+            <a href="{{ url_for('main.dashboard') }}" class="btn btn-primary mt-3">
+                <i class="fas fa-tachometer-alt me-2"></i>Go to Dashboard
+            </a>
+        </div>
+        {% else %}
+        <form id="bug-report-form">
+            <div id="bug-reports-container">
+                <!-- Bug sections will be dynamically added here -->
+            </div>
+            
+            <div class="d-flex justify-content-center gap-3 mt-4 mb-5">
+                <button type="button" class="btn btn-secondary" id="add-bug-btn">
+                    <i class="fas fa-plus-circle me-2"></i>Add another bug
+                </button>
+                <button type="submit" class="btn btn-primary" id="submit-all-btn">
+                    <i class="fas fa-paper-plane me-2"></i>Submit All Bugs
+                </button>
+            </div>
+        </form>
+        {% endif %}
+    </div>
+
+    <div id="notification-area" class="d-flex flex-column gap-2"></div>
+
+    <div class="modal fade" id="alertModal" tabindex="-1" aria-labelledby="alertModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="alertModalLabel">
+                        <i class="fas fa-bell me-2"></i>Message
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="alertMessage"></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script id="server-data" type="application/json">
+        {{ server_data | tojson | safe }}
+    </script>
+
+    <script>
+        let serverData = {};
+        const serverDataScript = document.getElementById('server-data');
+        if (serverDataScript && serverDataScript.textContent) {
+            try {
+                serverData = JSON.parse(serverDataScript.textContent);
+                console.log('Server data loaded. Releases available:', serverData.allReleases ? serverData.allReleases.length : 0);
+            } catch (e) {
+                console.error('Failed to parse server data JSON:', e);
+                console.error('Server data content:', serverDataScript.textContent);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Use the data directly from the serverData object
+            const allProjects = serverData.allProjects || [];
+            const allPriorities = serverData.allPriorities || [];
+            const allAssignableUsers = serverData.allAssignableUsers || [];
+            const allStatuses = serverData.allStatuses || []; 
+            
+            console.log('Server data loaded successfully. Number of projects:', allProjects.length);
+            console.log('Releases available for reporting:', serverData.allReleases ? serverData.allReleases.length : 0);
+
+            // Only initialize the form if there are active releases
+            {% if server_data.allReleases|length > 0 %}
+            const bugReportsContainer = document.getElementById('bug-reports-container');
+            const addBugBtn = document.getElementById('add-bug-btn');
+            const form = document.getElementById('bug-report-form');
+            const alertModal = new bootstrap.Modal(document.getElementById('alertModal'));
+
+            let bugCount = 0;
+
+            // Custom alert function using the modal
+            function showAlert(message, isSuccess = false) {
+                document.getElementById('alertMessage').textContent = message;
+                if (isSuccess) {
+                    document.querySelector('#alertModal .modal-header').classList.add('bg-success', 'text-white');
+                } else {
+                    document.querySelector('#alertModal .modal-header').classList.remove('bg-success', 'text-white');
+                }
+                alertModal.show();
+            }
+
+            // Function to add a new bug report section
+            function addBugSection() {
+                bugCount++;
+                const newBugHtml = `
+                    <div class="card mb-3 form-section" data-bug-id="${bugCount}">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="card-title">
+                                    <i class="fas fa-bug text-primary me-2"></i>
+                                    Bug Report #${bugCount}
+                                </h5>
+                                <button type="button" class="btn btn-danger btn-sm remove-bug-btn" title="Remove this bug">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="title_${bugCount}" class="form-label fw-semibold">Title <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="title_${bugCount}" name="title_${bugCount}" placeholder="Brief title of the bug" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="project_${bugCount}" class="form-label fw-semibold">Project <span class="text-danger">*</span></label>
+                                    <select class="form-select project-select" id="project_${bugCount}" name="project_${bugCount}" required>
+                                        <option value="">Select Project</option>
+                                        ${allProjects.map(p => `<option value="${p.id}" data-project-name="${p.name}">${p.name}</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="release_${bugCount}" class="form-label fw-semibold">Release <span class="text-danger">*</span></label>
+                                    <select class="form-select release-select" id="release_${bugCount}" name="release_${bugCount}" required>
+                                        <option value="">Select Release</option>
+                                    </select>
+                                    <div class="release-info" id="release_info_${bugCount}"></div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="module_${bugCount}" class="form-label fw-semibold">Module <span class="text-danger">*</span></label>
+                                    <select class="form-select module-select" id="module_${bugCount}" name="module_${bugCount}" required>
+                                        <option value="">Select Module</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="sub_module_${bugCount}" class="form-label fw-semibold">Sub-module</label>
+                                    <select class="form-select submodule-select" id="sub_module_${bugCount}" name="sub_module_${bugCount}">
+                                        <option value="">Select Sub-module (Optional)</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="priority_${bugCount}" class="form-label fw-semibold">Priority <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="priority_${bugCount}" name="priority_${bugCount}" required>
+                                        <option value="">Select Priority</option>
+                                        ${allPriorities.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="status_${bugCount}" class="form-label fw-semibold">Status <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="status_${bugCount}" name="status_${bugCount}" required>
+                                        <option value="">Select Status</option>
+                                        ${allStatuses.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="assigned_to_${bugCount}" class="form-label fw-semibold">Assigned To <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="assigned_to_${bugCount}" name="assigned_to_${bugCount}" required>
+                                        <option value="">Assign To</option>
+                                        ${allAssignableUsers.map(u => `<option value="${u.id}">${u.username}</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="screenshot_${bugCount}" class="form-label fw-semibold">Screenshot</label>
+                                    <input type="file" class="form-control screenshot-input" id="screenshot_${bugCount}" name="screenshot_${bugCount}" accept="image/*">
+                                    <small class="text-muted">Optional: Add a screenshot</small>
+                                </div>
+                                <div class="col-12 mb-3">
+                                    <label for="description_${bugCount}" class="form-label fw-semibold">Description <span class="text-danger">*</span></label>
+                                    <textarea class="form-control" id="description_${bugCount}" name="description_${bugCount}" rows="3" placeholder="Detailed description of the bug, steps to reproduce, etc." required></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                bugReportsContainer.insertAdjacentHTML('beforeend', newBugHtml);
+                addListeners(bugReportsContainer.lastElementChild);
+            }
+
+            // Function to attach event listeners to a bug section
+            function addListeners(bugSection) {
+                const projectSelect = bugSection.querySelector('.project-select');
+                const releaseSelect = bugSection.querySelector('.release-select');
+                const releaseInfo = bugSection.querySelector(`#release_info_${bugCount}`);
+                const moduleSelect = bugSection.querySelector('.module-select');
+                const subModuleSelect = bugSection.querySelector('.submodule-select');
+                const removeBtn = bugSection.querySelector('.remove-bug-btn');
+
+                if (projectSelect) {
+                    projectSelect.addEventListener('change', async (e) => {
+                        const projectId = e.target.value;
+                        
+                        // Reset dependent dropdowns
+                        moduleSelect.innerHTML = '<option value="">Select Module</option>';
+                        subModuleSelect.innerHTML = '<option value="">Select Sub-module (Optional)</option>';
+                        releaseSelect.innerHTML = '<option value="">Select Release</option>';
+                        if (releaseInfo) releaseInfo.innerHTML = '';
+
+                        if (projectId) {
+                            // 1. Fetch and populate MODULES
+                            try {
+                                const moduleResponse = await fetch(`/get_modules/${projectId}`);
+                                if (!moduleResponse.ok) throw new Error('Failed to fetch modules');
+                                const moduleData = await moduleResponse.json();
+                                moduleData.forEach(mod => {
+                                    const option = document.createElement('option');
+                                    option.value = mod.id;
+                                    option.textContent = mod.name;
+                                    moduleSelect.appendChild(option);
+                                });
+                            } catch (error) {
+                                console.error('Error fetching modules:', error);
+                                showAlert('Could not load modules for this project.');
+                            }
+
+                            // 2. Fetch and populate RELEASES (only ACTIVE releases where testing has started)
+                            try {
+                                const releaseResponse = await fetch(`/get_releases/${projectId}`);
+                                if (!releaseResponse.ok) throw new Error('Failed to fetch releases');
+                                const releaseData = await releaseResponse.json();
+                                
+                                if (releaseData.releases && releaseData.releases.length > 0) {
+                                    releaseData.releases.forEach(rel => {
+                                        const option = document.createElement('option');
+                                        option.value = rel.id;
+                                        option.textContent = rel.version_number;
+                                        option.dataset.version = rel.version_number;
+                                        releaseSelect.appendChild(option);
+                                    });
+                                    
+                                    if (releaseInfo) {
+                                        releaseInfo.innerHTML = `<span class="badge bg-success">${releaseData.releases.length} release(s) ready for testing</span>`;
+                                    }
+                                } else {
+                                    if (releaseInfo) {
+                                        releaseInfo.innerHTML = `<span class="badge bg-warning">No releases available for testing. Please start testing from dashboard.</span>`;
+                                    }
+                                }
+                            } catch (error) {
+                                console.error('Error fetching releases:', error);
+                                showAlert('Could not load releases for this project.');
+                                if (releaseInfo) {
+                                    releaseInfo.innerHTML = `<span class="badge bg-danger">Error loading releases</span>`;
+                                }
+                            }
+                        }
+                    });
+                }
+
+                if (moduleSelect) {
+                    moduleSelect.addEventListener('change', async (e) => {
+                        const moduleId = e.target.value;
+                        subModuleSelect.innerHTML = '<option value="">Select Sub-module (Optional)</option>';
+                        if (moduleId) {
+                            try {
+                                const response = await fetch(`/get_sub_modules/${moduleId}`);
+                                if (!response.ok) throw new Error('Failed to fetch sub-modules');
+                                const data = await response.json();
+                                data.forEach(subMod => {
+                                    const option = document.createElement('option');
+                                    option.value = subMod.id;
+                                    option.textContent = subMod.name;
+                                    subModuleSelect.appendChild(option);
+                                });
+                            } catch (error) {
+                                console.error('Error fetching sub-modules:', error);
+                                showAlert('Could not load sub-modules for this module.');
+                            }
+                        }
+                    });
+                }
+                
+                if (removeBtn) {
+                    removeBtn.addEventListener('click', () => {
+                        if (bugReportsContainer.children.length > 1) {
+                            bugSection.remove();
+                        } else {
+                            showAlert('You must have at least one bug report form.', false);
+                        }
+                    });
+                }
+            }
+
+            // Add a default bug section on page load
+            addBugSection();
+
+            addBugBtn.addEventListener('click', addBugSection);
+
+            // Handle form submission
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                // Show loading state
+                const submitBtn = document.getElementById('submit-all-btn');
+                const originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Submitting...';
+                submitBtn.disabled = true;
+
+                const bugSections = document.querySelectorAll('.form-section');
+                const bugs = [];
+
+                for (const section of bugSections) {
+                    const title = section.querySelector('input[name^="title_"]').value.trim();
+                    const description = section.querySelector('textarea[name^="description_"]').value.trim();
+                    const projectId = section.querySelector('select[name^="project_"]').value;
+                    const releaseId = section.querySelector('select[name^="release_"]').value;
+                    const moduleId = section.querySelector('select[name^="module_"]').value;
+                    const subModuleId = section.querySelector('select[name^="sub_module_"]').value;
+                    const priorityId = section.querySelector('select[name^="priority_"]').value;
+                    const statusId = section.querySelector('select[name^="status_"]').value;
+                    const assignedToId = section.querySelector('select[name^="assigned_to_"]').value;
+                    
+                    // Get project name for display
+                    const projectSelect = section.querySelector('select[name^="project_"]');
+                    const projectName = projectSelect.options[projectSelect.selectedIndex]?.dataset?.projectName || 'Unknown';
+
+                    if (!title || !description || !projectId || !releaseId || !moduleId || !priorityId || !statusId || !assignedToId) { 
+                        showAlert('Please fill out all required fields for all bugs marked with *.');
+                        submitBtn.innerHTML = originalText;
+                        submitBtn.disabled = false;
+                        return;
+                    }
+
+                    let screenshotData = null;
+                    const screenshotFile = section.querySelector('.screenshot-input').files[0];
+                    if (screenshotFile) {
+                        // Validate file size (max 5MB)
+                        if (screenshotFile.size > 5 * 1024 * 1024) {
+                            showAlert('Screenshot file size must be less than 5MB.');
+                            submitBtn.innerHTML = originalText;
+                            submitBtn.disabled = false;
+                            return;
+                        }
+                        
+                        screenshotData = await new Promise(resolve => {
+                            const reader = new FileReader();
+                            reader.onloadend = () => resolve(reader.result);
+                            reader.readAsDataURL(screenshotFile);
+                        });
+                    }
+
+                    bugs.push({
+                        title,
+                        description,
+                        project_id: parseInt(projectId),
+                        release_id: parseInt(releaseId),
+                        module_id: parseInt(moduleId),
+                        sub_module_id: subModuleId ? parseInt(subModuleId) : null,
+                        priority_id: parseInt(priorityId),
+                        status_id: parseInt(statusId),
+                        assigned_to_id: parseInt(assignedToId),
+                        screenshot: screenshotData,
+                        project_name: projectName
+                    });
+                }
+
+                try {
+                    const response = await fetch('/report_bug_list', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(bugs)
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (response.ok) {
+                        showAlert(`✅ ${bugs.length} bug(s) submitted successfully!`, true);
+                        // Clear the form and add a new section for a fresh start
+                        bugReportsContainer.innerHTML = '';
+                        bugCount = 0;
+                        addBugSection();
+                    } else {
+                        showAlert(`Error: ${result.error || 'Unknown error occurred'}`);
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    showAlert('An error occurred. Please check your connection and try again.');
+                } finally {
+                    // Restore button state
+                    submitBtn.innerHTML = originalText;
+                    submitBtn.disabled = false;
+                }
+            });
+            {% endif %}
+
+            // Socket.IO for real-time notifications
+            const socket = io();
+            socket.on('connect', () => {
+                console.log('Socket.IO connected');
+            });
+
+            socket.on('new_bug_report', (data) => {
+                const notificationArea = document.getElementById('notification-area');
+                const notification = document.createElement('div');
+                notification.className = 'alert alert-info notification-card d-flex align-items-center justify-content-between fade show';
+                notification.innerHTML = `
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <div>
+                            <strong>New Bug Reported!</strong>
+                            <div class="small">"${data.title}" by ${data.reporter_name} in ${data.project_name}.</div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert" aria-label="Close"></button>
+                `;
+                notificationArea.prepend(notification);
+                
+                // Auto-remove after 8 seconds
+                setTimeout(() => {
+                    notification.remove();
+                }, 8000);
+            });
+        });
+    </script>
+</body>
+</html>

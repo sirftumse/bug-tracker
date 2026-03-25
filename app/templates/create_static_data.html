@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+
+{% block content %}
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<div class="min-h-screen bg-gray-50 px-4 py-12">
+  <div class="max-w-7xl mx-auto space-y-12">
+
+    <!-- Header -->
+    <header class="flex flex-col items-center py-8 gap-3">
+      <h1 class="text-6xl font-extrabold text-gray-900 tracking-tight drop-shadow-lg">Status & Priority Management</h1>
+      <p class="text-xl text-gray-500 font-medium">Manage workflow statuses and bug priorities</p>
+    </header>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-8">
+      
+      <!-- Left Column - Status Management -->
+      <div class="lg:col-span-6">
+        <div class="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+          <div class="p-4 bg-gradient-to-r from-indigo-500 to-purple-600">
+            <div class="flex items-center">
+              <i class="fas fa-tag text-white text-xl mr-3"></i>
+              <h2 class="text-xl font-bold text-white">Status Management</h2>
+            </div>
+            <p class="text-indigo-100 text-sm mt-1">Define and manage workflow statuses for bugs</p>
+          </div>
+          
+          <div class="p-6">
+            <!-- Add New Status Form -->
+            <div class="mb-8">
+              <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                <i class="fas fa-plus-circle text-indigo-600 mr-2"></i>
+                Add New Status
+              </h3>
+              <form action="{{ url_for('main.add_status') }}" method="POST" class="space-y-4">
+                <div>
+                  <label for="status_name" class="block text-sm font-semibold text-gray-700 mb-1">Status Name</label>
+                  <input type="text" class="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:ring-indigo-500 focus:border-indigo-500 transition duration-150" 
+                         id="status_name" name="status_name" required placeholder="e.g., In Review, Deployed, etc.">
+                </div>
+                
+                <div>
+                  <label for="role_type" class="block text-sm font-semibold text-gray-700 mb-1">Role Access Type</label>
+                  <select class="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:ring-indigo-500 focus:border-indigo-500 transition duration-150" 
+                          id="role_type" name="role_type" required>
+                    <option value="">-- Select Role Type --</option>
+                    {% for option in role_type_options %}
+                    <option value="{{ option }}">{{ option }}</option>
+                    {% endfor %}
+                  </select>
+                  <p class="text-xs text-gray-500 mt-1">Defines which role group (DEVELOPER, TESTER, or ALL) can use this status.</p>
+                </div>
+                
+                <button type="submit" class="w-full py-2.5 rounded-lg bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition duration-150 shadow-md">
+                  <i class="fas fa-plus-circle mr-2"></i>Add Status
+                </button>
+              </form>
+            </div>
+
+            <!-- Existing Statuses -->
+            <div>
+              <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                <i class="fas fa-list text-indigo-600 mr-2"></i>
+                Existing Statuses
+              </h3>
+              <div class="bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
+                {% if statuses %}
+                <div class="divide-y divide-gray-200">
+                  {% for status in statuses %}
+                  <div class="flex items-center justify-between p-3 hover:bg-gray-100 transition duration-150">
+                    <div class="flex items-center space-x-3">
+                      <div class="w-2 h-2 rounded-full 
+                        {% if status.role_type == 'DEVELOPER' %}bg-blue-500
+                        {% elif status.role_type == 'TESTER' %}bg-purple-500
+                        {% else %}bg-gray-400{% endif %}">
+                      </div>
+                      <span class="text-gray-700 font-medium">{{ status.name }}</span>
+                    </div>
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                      {% if status.role_type == 'DEVELOPER' %}bg-blue-100 text-blue-800
+                      {% elif status.role_type == 'TESTER' %}bg-purple-100 text-purple-800
+                      {% else %}bg-gray-100 text-gray-600{% endif %}">
+                      {{ status.role_type }}
+                    </span>
+                  </div>
+                  {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-8">
+                  <i class="fas fa-tag fa-3x text-gray-300 mb-3"></i>
+                  <p class="text-gray-500">No statuses defined yet.</p>
+                </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column - Priority Management -->
+      <div class="lg:col-span-6">
+        <div class="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+          <div class="p-4 bg-gradient-to-r from-orange-500 to-red-600">
+            <div class="flex items-center">
+              <i class="fas fa-exclamation-triangle text-white text-xl mr-3"></i>
+              <h2 class="text-xl font-bold text-white">Priority Management</h2>
+            </div>
+            <p class="text-orange-100 text-sm mt-1">Define bug priority levels</p>
+          </div>
+          
+          <div class="p-6">
+            <!-- Add New Priority Form -->
+            <div class="mb-8">
+              <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                <i class="fas fa-plus-circle text-orange-600 mr-2"></i>
+                Add New Priority
+              </h3>
+              <form action="{{ url_for('main.add_priority') }}" method="POST" class="space-y-4">
+                <div>
+                  <label for="priority_name" class="block text-sm font-semibold text-gray-700 mb-1">Priority Name</label>
+                  <input type="text" class="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:ring-orange-500 focus:border-orange-500 transition duration-150" 
+                         id="priority_name" name="priority_name" required placeholder="e.g., Critical, High, Medium, Low">
+                </div>
+                
+                <button type="submit" class="w-full py-2.5 rounded-lg bg-orange-600 text-white font-semibold hover:bg-orange-700 transition duration-150 shadow-md">
+                  <i class="fas fa-plus-circle mr-2"></i>Add Priority
+                </button>
+              </form>
+            </div>
+
+            <!-- Existing Priorities -->
+            <div>
+              <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                <i class="fas fa-chart-line text-orange-600 mr-2"></i>
+                Existing Priorities
+              </h3>
+              <div class="bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
+                {% if priorities %}
+                <div class="divide-y divide-gray-200">
+                  {% for priority in priorities %}
+                  <div class="flex items-center justify-between p-3 hover:bg-gray-100 transition duration-150">
+                    <div class="flex items-center space-x-3">
+                      <div class="w-2 h-2 rounded-full 
+                        {% if priority.name == 'Critical' %}bg-red-500
+                        {% elif priority.name == 'High' %}bg-orange-500
+                        {% elif priority.name == 'Medium' %}bg-yellow-500
+                        {% elif priority.name == 'Low' %}bg-green-500
+                        {% else %}bg-gray-400{% endif %}">
+                      </div>
+                      <span class="text-gray-700 font-medium">{{ priority.name }}</span>
+                    </div>
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                      {% if priority.name == 'Critical' %}bg-red-100 text-red-800
+                      {% elif priority.name == 'High' %}bg-orange-100 text-orange-800
+                      {% elif priority.name == 'Medium' %}bg-yellow-100 text-yellow-800
+                      {% elif priority.name == 'Low' %}bg-green-100 text-green-800
+                      {% else %}bg-gray-100 text-gray-600{% endif %}">
+                      {{ priority.name }}
+                    </span>
+                  </div>
+                  {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-8">
+                  <i class="fas fa-chart-line fa-3x text-gray-300 mb-3"></i>
+                  <p class="text-gray-500">No priorities defined yet.</p>
+                </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Info Card -->
+        <div class="mt-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-200">
+          <div class="flex items-start">
+            <i class="fas fa-info-circle text-blue-600 text-xl mr-3 mt-0.5"></i>
+            <div>
+              <h4 class="text-sm font-bold text-blue-800 mb-1">About Status & Priority</h4>
+              <p class="text-xs text-blue-700">Statuses define the workflow state of bugs. Role Access Type determines which user group can use a status. Priorities help categorize bug severity levels.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Guide Card -->
+    <div class="bg-white rounded-xl shadow-lg border border-gray-100 mt-8">
+      <div class="p-4 bg-gray-50 border-b border-gray-200 rounded-t-xl">
+        <div class="flex items-center">
+          <i class="fas fa-graduation-cap text-indigo-600 mr-2"></i>
+          <h3 class="text-lg font-semibold text-gray-800">Quick Guide</h3>
+        </div>
+      </div>
+      <div class="p-6">
+        <div class="grid md:grid-cols-3 gap-6">
+          <div class="flex items-start space-x-3">
+            <div class="flex-shrink-0">
+              <div class="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+                <i class="fas fa-check text-green-600 text-sm"></i>
+              </div>
+            </div>
+            <div>
+              <h4 class="text-sm font-semibold text-gray-800 mb-1">Statuses</h4>
+              <p class="text-xs text-gray-600">Define the lifecycle stages of bugs (e.g., Open, In Progress, Resolved, Closed).</p>
+            </div>
+          </div>
+          <div class="flex items-start space-x-3">
+            <div class="flex-shrink-0">
+              <div class="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center">
+                <i class="fas fa-users text-purple-600 text-sm"></i>
+              </div>
+            </div>
+            <div>
+              <h4 class="text-sm font-semibold text-gray-800 mb-1">Role Types</h4>
+              <p class="text-xs text-gray-600">DEVELOPER: For dev team, TESTER: For QA team, ALL: Both can use.</p>
+            </div>
+          </div>
+          <div class="flex items-start space-x-3">
+            <div class="flex-shrink-0">
+              <div class="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center">
+                <i class="fas fa-chart-simple text-orange-600 text-sm"></i>
+              </div>
+            </div>
+            <div>
+              <h4 class="text-sm font-semibold text-gray-800 mb-1">Priorities</h4>
+              <p class="text-xs text-gray-600">Categorize bug urgency (Critical, High, Medium, Low). Helps in prioritization.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+
+  /* Form focus effects */
+  input:focus, select:focus {
+    outline: none;
+    ring: 2px solid #4f46e5;
+  }
+
+  /* Card hover effects */
+  .card-hover {
+    transition: all 0.3s ease;
+  }
+  .card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+  }
+</style>
+{% endblock %}

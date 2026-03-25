@@ -1,0 +1,905 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Bug Tracker{% endblock %}
+
+{% block content %}
+<!-- Additional styles specific to dashboard -->
+<style>
+    .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+    
+    .release-card, .bug-card {
+        transition: all 0.3s ease;
+    }
+    .release-card:hover, .bug-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    }
+    
+    .project-header {
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    .project-header:hover {
+        background-color: #f3f4f6;
+    }
+    .project-content {
+        transition: max-height 0.3s ease;
+    }
+    .rotate-chevron {
+        transform: rotate(180deg);
+    }
+    
+    .filter-btn.active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white !important;
+    }
+    
+    .stats-card {
+        transition: all 0.3s ease;
+    }
+    .stats-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1) !important;
+    }
+    
+    .line-clamp-2 {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    
+    .dev-release-card {
+        transition: all 0.3s ease;
+    }
+    .dev-release-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        border-color: #3b82f6;
+    }
+    
+    .clickable-stat {
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+    .clickable-stat:hover {
+        transform: translateY(-2px);
+    }
+    .stat-total:hover { background-color: #eff6ff; }
+    .stat-open:hover { background-color: #fef9c3; }
+    .stat-closed:hover { background-color: #dcfce7; }
+</style>
+
+{% if user %}
+    <!-- Welcome Header -->
+    <div class="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl shadow-xl p-8 mb-8 text-white">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-4xl font-bold mb-2">Welcome, {{ user.name }}!</h1>
+                {% if user.role %}
+                    <p class="text-indigo-100 text-lg">Your Role: <span class="font-semibold">{{ user.role.name }}</span></p>
+                {% else %}
+                    <p class="text-red-200 text-lg font-semibold">Role Not Assigned.</p>
+                {% endif %}
+            </div>
+            <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                <i class="fas fa-user-circle text-4xl text-white"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-xl shadow-lg p-6 stats-card">
+            <div class="flex justify-between items-center">
+                <div>
+                    <p class="text-indigo-100 text-sm font-medium">Total Releases</p>
+                    <p class="text-3xl font-bold mt-1">
+                        {% if user.role.name in ['Tester', 'Testing Head'] %}
+                            {{ user.assigned_releases|length }}
+                        {% else %}
+                            {% set total = 0 %}
+                            {% for project in user.projects %}
+                                {% set total = total + project.releases|length %}
+                            {% endfor %}
+                            {{ total }}
+                        {% endif %}
+                    </p>
+                </div>
+                <i class="fas fa-rocket text-4xl opacity-50"></i>
+            </div>
+        </div>
+        <div class="bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl shadow-lg p-6 stats-card">
+            <div class="flex justify-between items-center">
+                <div>
+                    <p class="text-green-100 text-sm font-medium">Active (Can Test)</p>
+                    <p class="text-3xl font-bold mt-1">
+                        {% if user.role.name in ['Tester', 'Testing Head'] %}
+                            {{ user.assigned_releases|selectattr('status', 'equalto', 'active')|selectattr('testing_started', 'equalto', true)|list|length }}
+                        {% else %}
+                            0
+                        {% endif %}
+                    </p>
+                </div>
+                <i class="fas fa-play-circle text-4xl opacity-50"></i>
+            </div>
+        </div>
+        <div class="bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl shadow-lg p-6 stats-card">
+            <div class="flex justify-between items-center">
+                <div>
+                    <p class="text-orange-100 text-sm font-medium">Reported (Locked)</p>
+                    <p class="text-3xl font-bold mt-1">
+                        {% if user.role.name in ['Tester', 'Testing Head'] %}
+                            {{ user.assigned_releases|selectattr('status', 'in', ['ready_for_testing', 'reported'])|list|length }}
+                        {% else %}
+                            0
+                        {% endif %}
+                    </p>
+                </div>
+                <i class="fas fa-flag text-4xl opacity-50"></i>
+            </div>
+        </div>
+        <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl shadow-lg p-6 stats-card">
+            <div class="flex justify-between items-center">
+                <div>
+                    <p class="text-blue-100 text-sm font-medium">Ready for Testing</p>
+                    <p class="text-3xl font-bold mt-1">
+                        {% if user.role.name in ['Tester', 'Testing Head'] %}
+                            {{ user.assigned_releases|selectattr('status', 'equalto', 'active')|selectattr('testing_started', 'equalto', false)|list|length }}
+                        {% else %}
+                            0
+                        {% endif %}
+                    </p>
+                </div>
+                <i class="fas fa-check-circle text-4xl opacity-50"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Developer Dashboard -->
+    {% if user.role.name in ['Developer', 'Project Head'] %}
+    <div class="mb-8">
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200">
+            <div class="bg-gradient-to-r from-blue-500 to-indigo-600 px-6 py-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <i class="fas fa-code text-white text-2xl"></i>
+                        <h2 class="text-white text-xl font-bold">Development Dashboard</h2>
+                    </div>
+                    <span class="bg-white bg-opacity-20 text-white px-3 py-1 rounded-full text-sm font-medium">
+                        {% set total_dev_releases = 0 %}
+                        {% for project in user.projects %}
+                            {% set total_dev_releases = total_dev_releases + project.releases|length %}
+                        {% endfor %}
+                        {{ total_dev_releases }} Total Releases
+                    </span>
+                </div>
+            </div>
+            
+            {% set dev_releases = [] %}
+            {% for project in user.projects %}
+                {% for release in project.releases %}
+                    {% set _ = dev_releases.append(release) %}
+                {% endfor %}
+            {% endfor %}
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-6 bg-gray-50 border-b border-gray-200">
+                <div class="text-center">
+                    <div class="text-3xl font-bold text-blue-600">{{ dev_releases|selectattr('status', 'in', ['ready_for_testing', 'reported'])|list|length }}</div>
+                    <div class="text-sm text-gray-600 mt-1">Pending Start</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-3xl font-bold text-green-600">{{ dev_releases|selectattr('status', 'equalto', 'in_progress')|list|length }}</div>
+                    <div class="text-sm text-gray-600 mt-1">In Development</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-3xl font-bold text-purple-600">{{ dev_releases|selectattr('status', 'equalto', 'ready_for_testing')|list|length }}</div>
+                    <div class="text-sm text-gray-600 mt-1">Ready for Testing</div>
+                </div>
+            </div>
+            
+            <div class="p-4 border-b border-gray-200 bg-white">
+                <div class="flex flex-wrap gap-2">
+                    <button class="dev-filter-btn px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 bg-indigo-600 text-white" data-dev-filter="all"><i class="fas fa-list mr-2"></i>All Releases</button>
+                    <button class="dev-filter-btn px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 bg-gray-100 text-gray-700 hover:bg-gray-200" data-dev-filter="pending"><i class="fas fa-hourglass-half mr-2 text-yellow-600"></i>Pending Start</button>
+                    <button class="dev-filter-btn px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 bg-gray-100 text-gray-700 hover:bg-gray-200" data-dev-filter="in_progress"><i class="fas fa-show mr-2 text-blue-600"></i>In Development</button>
+                    <button class="dev-filter-btn px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 bg-gray-100 text-gray-700 hover:bg-gray-200" data-dev-filter="ready_for_testing"><i class="fas fa-check-circle mr-2 text-purple-600"></i>Ready for Testing</button>
+                </div>
+            </div>
+            
+            <div class="divide-y divide-gray-200" id="devProjectsContainer">
+                {% if dev_releases %}
+                    {% set dev_projects = {} %}
+                    {% for release in dev_releases %}
+                        {% set project_name = release.project.name %}
+                        {% if project_name not in dev_projects %}
+                            {% set _ = dev_projects.update({project_name: [release]}) %}
+                        {% else %}
+                            {% set _ = dev_projects[project_name].append(release) %}
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% for project_name, project_releases in dev_projects.items()|sort %}
+                    <div class="dev-project-section" data-dev-project="{{ project_name }}">
+                        <div class="dev-project-header flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition duration-150 cursor-pointer" onclick="toggleDevProject('{{ project_name|replace(' ', '_') }}')">
+                            <div class="flex items-center space-x-3">
+                                <i class="fas fa-folder-open text-blue-500"></i>
+                                <span class="font-semibold text-gray-900">{{ project_name }}</span>
+                                <span class="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-0.5 rounded-full">{{ project_releases|length }} release{% if project_releases|length != 1 %}s{% endif %}</span>
+                            </div>
+                            <div class="flex items-center space-x-3">
+                                {% set pending_count = project_releases|selectattr('status', 'in', ['ready_for_testing', 'reported'])|list|length %}
+                                {% if pending_count > 0 %}<span class="bg-yellow-100 text-yellow-800 text-xs font-medium px-2 py-0.5 rounded-full">{{ pending_count }} pending</span>{% endif %}
+                                {% set in_progress_count = project_releases|selectattr('status', 'equalto', 'in_progress')|list|length %}
+                                {% if in_progress_count > 0 %}<span class="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-0.5 rounded-full">{{ in_progress_count }} in progress</span>{% endif %}
+                                <svg id="dev-chevron-{{ project_name|replace(' ', '_') }}" class="w-5 h-5 text-gray-500 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
+                        </div>
+                        <div id="dev-project-{{ project_name|replace(' ', '_') }}" class="dev-project-content overflow-hidden transition-all duration-300 max-h-0">
+                            <div class="p-4 bg-white max-h-96 overflow-y-auto custom-scrollbar">
+                                <div class="grid md:grid-cols-2 gap-4">
+                                    {% for release in project_releases|sort(attribute='timestamp', reverse=true) %}
+                                    <div class="dev-release-card bg-white rounded-xl border-2 transition-all duration-300 p-4 space-y-3 h-full flex flex-col" data-release-id="{{ release.id }}" data-dev-status="{{ release.status }}" data-dev-project="{{ release.project.name }}">
+                                        <div class="flex justify-between items-start">
+                                            <div>
+                                                <h4 class="font-bold text-blue-700 text-lg">{{ release.version_number }}</h4>
+                                                {% if release.parent_release %}<p class="text-xs text-gray-500"><i class="fas fa-code-branch fa-xs"></i> Based on: {{ release.parent_release.version_number }}</p>{% endif %}
+                                            </div>
+                                            <span class="badge {% if release.status == 'ready_for_testing' or release.status == 'reported' %}bg-yellow-100 text-yellow-800{% elif release.status == 'in_progress' %}bg-blue-100 text-blue-800{% elif release.status == 'active' and not release.testing_started %}bg-purple-100 text-purple-800{% elif release.status == 'closed' %}bg-gray-100 text-gray-800{% else %}bg-gray-100{% endif %} px-2 py-1 rounded-full text-xs font-semibold">
+                                                {% if release.status == 'ready_for_testing' or release.status == 'reported' %}<i class="fas fa-clock me-1"></i> Pending Start
+                                                {% elif release.status == 'in_progress' %}<i class="fas fa-code me-1"></i> In Development
+                                                {% elif release.status == 'active' and not release.testing_started %}<i class="fas fa-hourglass-half me-1"></i> Ready for Testing
+                                                {% elif release.status == 'closed' %}<i class="fas fa-archive me-1"></i> Closed{% endif %}
+                                            </span>
+                                        </div>
+                                        {% if release.release_note %}<p class="text-sm text-gray-600 line-clamp-2">{{ release.release_note[:100] }}{% if release.release_note|length > 100 %}...{% endif %}</p>{% endif %}
+                                        <div class="flex flex-wrap gap-2" onclick="event.stopPropagation();">
+                                            {% if release.status in ['ready_for_testing', 'reported'] %}
+                                            <form method="POST" action="{{ url_for('main.start_development', release_id=release.id) }}" class="inline">
+                                                <button type="submit" class="text-xs px-3 py-1.5 rounded-md text-white bg-green-600 hover:bg-green-700 transition font-semibold" onclick="return confirm('Start working on this release?')"><i class="fas fa-play me-1"></i> Start Development</button>
+                                            </form>
+                                            {% endif %}
+                                            {% if release.status == 'in_progress' %}
+                                            <a href="{{ url_for('main.view_bugs', project_id=release.project_id) }}" class="text-xs px-3 py-1.5 rounded-md text-white bg-blue-600 hover:bg-blue-700 transition font-semibold"><i class="fas fa-bug me-1"></i> View & Fix Bugs</a>
+                                            {% endif %}
+                                            {% if release.status == 'active' and not release.testing_started %}
+                                            <span class="text-xs px-3 py-1.5 rounded-md bg-purple-100 text-purple-800 font-semibold"><i class="fas fa-check me-1"></i> Awaiting Testing Start</span>
+                                            {% endif %}
+                                            <button type="button" class="text-xs px-3 py-1.5 rounded-md text-gray-700 bg-gray-100 hover:bg-gray-200 transition font-semibold" onclick="showReleaseDetails({{ release.id }})"><i class="fas fa-info-circle me-1"></i> Details</button>
+                                        </div>
+                                        {% if release.get_all_bugs_count() > 0 %}
+                                        <div class="space-y-2">
+                                            <div class="flex justify-between items-center text-xs"><span class="text-gray-600">Bug Progress</span><span class="font-semibold">{{ release.get_publish_progress() }}%</span></div>
+                                            <div class="w-full bg-gray-200 rounded-full h-2"><div class="bg-green-500 rounded-full h-2" style="width: {{ release.get_publish_progress() }}%"></div></div>
+                                            <div class="flex justify-between text-xs"><span class="text-gray-500"><i class="fas fa-bug me-1"></i>{{ release.get_all_bugs_count() }} total</span><span class="text-green-600"><i class="fas fa-check-circle me-1"></i>{{ release.get_closed_bugs_count() }} fixed</span><span class="text-yellow-600"><i class="fas fa-clock me-1"></i>{{ release.get_open_bugs_count() }} open</span></div>
+                                        </div>
+                                        {% else %}<div class="text-center py-2"><p class="text-xs text-gray-400"><i class="fas fa-info-circle me-1"></i>No bugs reported yet</p></div>{% endif %}
+                                        <div class="flex items-center justify-between text-xs text-gray-500 pt-2 border-t border-gray-100">
+                                            <div class="flex items-center"><div class="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center mr-1"><span class="text-[10px] font-bold text-blue-700">{{ release.released_by.name[0] }}</span></div><span>{{ release.released_by.name.split()[0] }}</span></div>
+                                            <div class="flex items-center"><i class="far fa-calendar-alt mr-1"></i><span>{{ release.timestamp.strftime('%d %b %Y') }}</span></div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="p-8 text-center text-gray-500"><i class="fas fa-inbox text-4xl mb-2 text-gray-300"></i><p>No releases assigned to your projects yet.</p><p class="text-sm mt-1">Releases will appear here once created by Admin.</p></div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Real-Time Bug Alerts -->
+    <div class="mb-8">
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200">
+            <div class="bg-gradient-to-r from-red-500 to-pink-500 px-6 py-4">
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-bell text-white text-2xl"></i>
+                    <h2 class="text-white text-xl font-bold">Real-Time Bug Alerts</h2>
+                </div>
+            </div>
+            <div class="p-6 h-48 overflow-y-auto custom-scrollbar" id="bug-alerts-container">
+                <p class="text-gray-500 text-center py-5">No new bug alerts yet. Keep an eye out!</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tester Dashboard Filters -->
+    {% if user.role.name in ['Tester', 'Testing Head'] and user.assigned_releases %}
+    <div class="mb-6 flex flex-wrap gap-2">
+        <button class="filter-btn px-5 py-2 rounded-full text-sm font-semibold transition-all duration-200 bg-indigo-600 text-white shadow-md" data-filter="all">All Releases</button>
+        <button class="filter-btn px-5 py-2 rounded-full text-sm font-semibold transition-all duration-200 bg-gray-100 text-gray-700 hover:bg-gray-200" data-filter="active_testing"><i class="fas fa-play-circle mr-2 text-green-600"></i>Active (Can Test)</button>
+        <button class="filter-btn px-5 py-2 rounded-full text-sm font-semibold transition-all duration-200 bg-gray-100 text-gray-700 hover:bg-gray-200" data-filter="ready_for_testing"><i class="fas fa-hourglass-half mr-2 text-blue-600"></i>Ready for Testing</button>
+        <button class="filter-btn px-5 py-2 rounded-full text-sm font-semibold transition-all duration-200 bg-gray-100 text-gray-700 hover:bg-gray-200" data-filter="reported"><i class="fas fa-flag mr-2 text-orange-600"></i>Reported (Locked)</button>
+        <button class="filter-btn px-5 py-2 rounded-full text-sm font-semibold transition-all duration-200 bg-gray-100 text-gray-700 hover:bg-gray-200" data-filter="closed"><i class="fas fa-archive mr-2 text-gray-600"></i>Closed</button>
+    </div>
+
+    <div class="mb-8">
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200">
+            <div class="bg-gradient-to-r from-purple-500 to-pink-500 px-6 py-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <i class="fas fa-rocket text-white text-2xl"></i>
+                        <h2 class="text-white text-xl font-bold">Your Releases by Project</h2>
+                    </div>
+                    <span class="bg-white bg-opacity-20 text-white px-3 py-1 rounded-full text-sm font-medium">{{ user.assigned_releases|length }} Total</span>
+                </div>
+            </div>
+            
+            {% set projects = {} %}
+            {% for release in user.assigned_releases %}
+                {% set project_name = release.project.name %}
+                {% if project_name not in projects %}{% set _ = projects.update({project_name: [release]}) %}{% else %}{% set _ = projects[project_name].append(release) %}{% endif %}
+            {% endfor %}
+            
+            <div class="divide-y divide-gray-200" id="projectsContainer">
+                {% for project_name, project_releases in projects.items()|sort %}
+                <div class="project-section" data-project="{{ project_name }}">
+                    <div class="project-header flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition duration-150 cursor-pointer" onclick="toggleProject('{{ project_name|replace(' ', '_') }}')">
+                        <div class="flex items-center space-x-3">
+                            <i class="fas fa-folder text-indigo-500 text-xl"></i>
+                            <span class="font-semibold text-gray-900">{{ project_name }}</span>
+                            <span class="bg-gray-200 text-gray-700 text-xs font-medium px-2 py-0.5 rounded-full">{{ project_releases|length }} release{% if project_releases|length != 1 %}s{% endif %}</span>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            {% set active_count = project_releases|selectattr('status', 'equalto', 'active')|selectattr('testing_started', 'equalto', true)|list|length %}
+                            {% if active_count > 0 %}<span class="bg-green-100 text-green-800 text-xs font-medium px-2 py-0.5 rounded-full">{{ active_count }} active</span>{% endif %}
+                            <svg id="chevron-{{ project_name|replace(' ', '_') }}" class="w-5 h-5 text-gray-500 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </div>
+                    </div>
+                    <div id="project-{{ project_name|replace(' ', '_') }}" class="project-content overflow-hidden transition-all duration-300 max-h-0">
+                        <div class="p-4 bg-white max-h-96 overflow-y-auto custom-scrollbar">
+                            <div class="grid md:grid-cols-2 gap-4">
+                                {% for release in project_releases|sort(attribute='timestamp', reverse=true) %}
+                                <div class="release-card bg-white rounded-xl border border-gray-200 shadow-lg p-4 space-y-3 h-full flex flex-col transition duration-300 hover:shadow-xl hover:border-indigo-400"
+                                     data-version="{{ release.version_number }}" data-project="{{ release.project.name }}" data-release-id="{{ release.id }}" data-status="{{ release.status }}" data-testing-started="{{ release.testing_started|lower }}">
+                                    <div class="flex justify-between items-start">
+                                        <div><h4 class="font-bold text-indigo-700 text-lg">{{ release.version_number }}</h4>{% if release.parent_release %}<p class="text-xs text-gray-500"><i class="fas fa-code-branch fa-xs"></i> {{ release.parent_release.version_number }}</p>{% endif %}</div>
+                                        <span class="badge {% if release.status == 'active' and release.testing_started %}bg-green-100 text-green-800{% elif release.status == 'active' and not release.testing_started %}bg-blue-100 text-blue-800{% elif release.status == 'ready_for_testing' %}bg-orange-100 text-orange-800{% elif release.status == 'reported' %}bg-orange-100 text-orange-800{% elif release.status == 'closed' %}bg-gray-100 text-gray-800{% else %}bg-gray-100{% endif %} py-1 px-2 rounded-full text-xs font-semibold">
+                                            {% if release.status == 'active' and release.testing_started %}<i class="fas fa-play-circle me-1"></i> Active - Can Test
+                                            {% elif release.status == 'active' and not release.testing_started %}<i class="fas fa-hourglass-half me-1"></i> Ready for Testing
+                                            {% elif release.status == 'ready_for_testing' %}<i class="fas fa-flag me-1"></i> Reported (Locked)
+                                            {% elif release.status == 'reported' %}<i class="fas fa-flag me-1"></i> Reported (Locked)
+                                            {% elif release.status == 'closed' %}<i class="fas fa-archive me-1"></i> Closed{% endif %}
+                                        </span>
+                                    </div>
+                                    <div class="flex flex-wrap gap-2" onclick="event.stopPropagation();">
+                                        {% if release.status == 'active' and not release.testing_started %}
+                                        <form method="POST" action="{{ url_for('main.start_testing', release_id=release.id) }}" class="inline"><button type="submit" class="text-xs px-3 py-1.5 rounded-md text-white bg-indigo-600 hover:bg-indigo-700 transition font-semibold" onclick="return confirm('Start testing this release?')"><i class="fas fa-play me-1"></i> Start Testing</button></form>
+                                        {% endif %}
+                                        {% if release.status == 'active' and release.testing_started %}
+                                        <a href="{{ url_for('main.report_bug') }}" class="text-xs px-3 py-1.5 rounded-md text-white bg-red-600 hover:bg-red-700 transition font-semibold"><i class="fas fa-bug me-1"></i> Report Bug</a>
+                                        {% endif %}
+                                        {% if user.role.name == 'Testing Head' and release.status == 'active' and release.testing_started and release.get_all_bugs_count() > 0 %}
+                                        <form method="POST" action="{{ url_for('main.report_build', release_id=release.id) }}" class="inline"><button type="submit" class="text-xs px-3 py-1.5 rounded-md text-white bg-yellow-600 hover:bg-yellow-700 transition font-semibold" onclick="return confirm('Report this build to developers?')"><i class="fas fa-flag me-1"></i> Report Build</button></form>
+                                        {% endif %}
+                                        {% if release.status == 'ready_for_testing' %}
+                                        <a href="{{ url_for('main.view_bugs', project_id=release.project_id) }}" class="text-xs px-3 py-1.5 rounded-md text-white bg-purple-600 hover:bg-purple-700 transition font-semibold"><i class="fas fa-check-circle me-1"></i> Verify Bugs</a>
+                                        {% endif %}
+                                        {% if release.status == 'reported' %}
+                                        <a href="{{ url_for('main.view_bugs', project_id=release.project_id) }}" class="text-xs px-3 py-1.5 rounded-md text-gray-700 bg-gray-100 hover:bg-gray-200 transition font-semibold"><i class="fas fa-eye me-1"></i> View Bugs</a>
+                                        {% endif %}
+                                        <button type="button" class="text-xs px-3 py-1.5 rounded-md text-gray-700 bg-gray-100 hover:bg-gray-200 transition font-semibold" onclick="showReleaseDetails({{ release.id }})"><i class="fas fa-info-circle me-1"></i> Details</button>
+                                    </div>
+                                    {% if release.get_all_bugs_count() > 0 %}
+                                    <div class="space-y-1 mt-2"><div class="flex justify-between items-center text-xs"><span class="text-gray-600">{% if release.status == 'ready_for_testing' %}Verification Progress{% else %}Testing Progress{% endif %}</span><span class="font-semibold">{{ release.get_testing_progress() }}%</span></div><div class="w-full bg-gray-200 rounded-full h-1.5"><div class="bg-green-500 rounded-full h-1.5" style="width: {{ release.get_testing_progress() }}%"></div></div></div>
+                                    {% endif %}
+                                    <div class="flex flex-wrap gap-1"><span class="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full"><i class="fas fa-bug"></i> {{ release.get_all_bugs_count() }}</span><span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full"><i class="fas fa-exclamation-circle"></i> {{ release.get_open_bugs_count() }}</span><span class="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full"><i class="fas fa-check-circle"></i> {{ release.get_closed_bugs_count() }}</span></div>
+                                    <div class="flex items-center justify-between text-xs text-gray-500"><div class="flex items-center"><div class="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center mr-1"><span class="text-[10px] font-bold text-indigo-700">{{ release.released_by.name[0] }}</span></div><span>{{ release.released_by.name.split()[0] }}</span></div><span><i class="far fa-calendar-alt mr-1"></i>{{ release.timestamp.strftime('%d %b') }}</span></div>
+                                    <div class="flex items-center"><i class="fas fa-users text-gray-400 text-xs mr-1"></i>{% for tester in release.assigned_users[:3] %}<div class="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center text-[10px] font-medium text-gray-700 -ml-1 first:ml-0 border border-white" title="{{ tester.name }}">{{ tester.name[:1] }}</div>{% endfor %}{% if release.assigned_users|length > 3 %}<div class="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center text-[10px] font-medium text-gray-700 -ml-1 border border-white" title="+{{ release.assigned_users|length - 3 }} more">+{{ release.assigned_users|length - 3 }}</div>{% endif %}</div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Admin Console -->
+    {% if user.role.name == 'Admin' %}
+    <div class="bg-white rounded-2xl shadow-xl overflow-hidden mb-8 border border-gray-200">
+        <div class="bg-gradient-to-r from-gray-700 to-gray-900 px-6 py-4">
+            <div class="flex items-center space-x-3">
+                <i class="fas fa-cog text-white text-2xl"></i>
+                <h2 class="text-white text-xl font-bold">Administrator Management Console</h2>
+            </div>
+        </div>
+        <div class="p-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <a href="{{ url_for('main.manage_users') }}" class="flex flex-col items-center justify-center p-4 border border-gray-200 rounded-xl hover:bg-indigo-50 hover:border-indigo-300 transition-all duration-200 group">
+                <i class="fas fa-users text-3xl text-indigo-600 mb-2 group-hover:scale-110 transition-transform"></i>
+                <span class="text-sm font-medium text-gray-700 text-center">Manage Users</span>
+            </a>
+            <a href="{{ url_for('main.create_project') }}" class="flex flex-col items-center justify-center p-4 border border-gray-200 rounded-xl hover:bg-indigo-50 hover:border-indigo-300 transition-all duration-200 group">
+                <i class="fas fa-folder text-3xl text-indigo-600 mb-2 group-hover:scale-110 transition-transform"></i>
+                <span class="text-sm font-medium text-gray-700 text-center">Manage Projects</span>
+            </a>
+            <a href="{{ url_for('main.manage_project_assignments') }}" class="flex flex-col items-center justify-center p-4 border border-gray-200 rounded-xl hover:bg-indigo-50 hover:border-indigo-300 transition-all duration-200 group">
+                <i class="fas fa-link text-3xl text-indigo-600 mb-2 group-hover:scale-110 transition-transform"></i>
+                <span class="text-sm font-medium text-gray-700 text-center">Project Assignments</span>
+            </a>
+            <a href="{{ url_for('main.create_status_priority') }}" class="flex flex-col items-center justify-center p-4 border border-gray-200 rounded-xl hover:bg-indigo-50 hover:border-indigo-300 transition-all duration-200 group">
+                <i class="fas fa-tag text-3xl text-indigo-600 mb-2 group-hover:scale-110 transition-transform"></i>
+                <span class="text-sm font-medium text-gray-700 text-center">Status & Priority</span>
+            </a>
+            <a href="{{ url_for('main.create_user') }}" class="flex flex-col items-center justify-center p-4 border border-gray-200 rounded-xl hover:bg-indigo-50 hover:border-indigo-300 transition-all duration-200 group">
+                <i class="fas fa-user-plus text-3xl text-indigo-600 mb-2 group-hover:scale-110 transition-transform"></i>
+                <span class="text-sm font-medium text-gray-700 text-center">Create User</span>
+            </a>
+            <a href="{{ url_for('main.release_build') }}" class="flex flex-col items-center justify-center p-4 border border-gray-200 rounded-xl hover:bg-indigo-50 hover:border-indigo-300 transition-all duration-200 group">
+                <i class="fas fa-package text-3xl text-indigo-600 mb-2 group-hover:scale-110 transition-transform"></i>
+                <span class="text-sm font-medium text-gray-700 text-center">Manage Releases</span>
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Assigned Bugs and Reported Bugs -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200">
+            <div class="bg-gradient-to-r from-indigo-500 to-indigo-600 px-6 py-4">
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-bug text-white text-2xl"></i>
+                    <h2 class="text-white text-xl font-bold">Assigned Bugs</h2>
+                </div>
+            </div>
+            <div class="divide-y divide-gray-100 max-h-96 overflow-y-auto custom-scrollbar">
+                {% if assigned_bugs %}
+                    {% for bug in assigned_bugs %}
+                    <a href="{{ url_for('main.view_bugs', project_id=bug.project_id, bug_id=bug.id) }}" class="bug-card flex justify-between items-center p-4 hover:bg-gray-50 transition duration-150">
+                        <div><p class="text-gray-800 font-medium">{{ bug.title }}</p><p class="text-xs text-gray-500 mt-1">#{{ bug.id }} • {{ bug.project.name }}</p></div>
+                        <span class="badge {% if bug.status.name == 'Closed' %}bg-green-100 text-green-800{% elif bug.status.name == 'Resolved' %}bg-blue-100 text-blue-800{% elif bug.status.name == 'In Progress' %}bg-yellow-100 text-yellow-800{% elif bug.status.name == 'Open' %}bg-red-100 text-red-800{% else %}bg-blue-600{% endif %} px-2 py-1 rounded-full text-xs">{{ bug.status.name }}</span>
+                    </a>
+                    {% endfor %}
+                {% else %}<p class="p-6 text-center text-gray-500">No bugs assigned to you.</p>{% endif %}
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200">
+            <div class="bg-gradient-to-r from-red-500 to-red-600 px-6 py-4">
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-flag text-white text-2xl"></i>
+                    <h2 class="text-white text-xl font-bold">Bugs You Reported</h2>
+                </div>
+            </div>
+            <div class="divide-y divide-gray-100 max-h-96 overflow-y-auto custom-scrollbar">
+                {% if reported_bugs %}
+                    {% for bug in reported_bugs %}
+                    <a href="{{ url_for('main.view_bugs', project_id=bug.project_id, bug_id=bug.id) }}" class="bug-card flex justify-between items-center p-4 hover:bg-gray-50 transition duration-150">
+                        <div><p class="text-gray-800 font-medium">{{ bug.title }}</p><p class="text-xs text-gray-500 mt-1">#{{ bug.id }} • {{ bug.project.name }}</p></div>
+                        <span class="badge {% if bug.status.name == 'Closed' %}bg-green-100{% elif bug.status.name == 'Resolved' %}bg-blue-100{% elif bug.status.name == 'In Progress' %}bg-yellow-100{% elif bug.status.name == 'Open' %}bg-red-100{% else %}bg-gray-100{% endif %} px-2 py-1 rounded-full text-xs">{{ bug.status.name }}</span>
+                    </a>
+                    {% endfor %}
+                {% else %}<p class="p-6 text-center text-gray-500">No bugs reported by you.</p>{% endif %}
+            </div>
+        </div>
+    </div>
+{% else %}
+    <div class="bg-red-100 border border-red-400 text-red-700 rounded-xl p-6 text-center" role="alert">
+        <i class="fas fa-exclamation-triangle text-3xl mb-2"></i>
+        <h3 class="text-xl font-bold mb-2">Session Error!</h3>
+        <p>We could not load your user profile. This usually means your session has expired.</p>
+        <a href="{{ url_for('main.login') }}" class="mt-4 inline-block bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-2 rounded-lg transition duration-150">Go to Login Page</a>
+    </div>
+{% endif %}
+
+<!-- Release Details Modal -->
+<div class="modal fade" id="releaseDetailsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content rounded-2xl shadow-2xl border-0">
+            <div class="modal-header border-b border-gray-200 bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
+                <h5 class="modal-title text-xl font-bold"><i class="fas fa-info-circle me-2"></i>Release Details</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-6">
+                <div class="text-center py-4" id="releaseDetailsLoading">
+                    <div class="spinner-border text-indigo-600" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+                <div id="releaseDetailsContent" style="display: none;"></div>
+            </div>
+            <div class="modal-footer bg-gray-50 border-0">
+                <button type="button" class="px-4 py-2 rounded-lg text-sm font-medium text-gray-700 bg-gray-200 hover:bg-gray-300 transition" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+<script>
+    // Dashboard-specific JavaScript
+    let currentFilter = 'all';
+    let currentDevFilter = 'all';
+    
+    const viewBugsUrl = "{{ url_for('main.view_bugs', project_id=0) }}".replace('0', '');
+    
+    function toggleProject(projectId) {
+        const content = document.getElementById('project-' + projectId);
+        const chevron = document.getElementById('chevron-' + projectId);
+        if (content) {
+            if (content.classList.contains('max-h-0')) {
+                content.classList.remove('max-h-0');
+                content.classList.add('max-h-[800px]');
+                if (chevron) chevron.classList.add('rotate-chevron');
+            } else {
+                content.classList.add('max-h-0');
+                content.classList.remove('max-h-[800px]');
+                if (chevron) chevron.classList.remove('rotate-chevron');
+            }
+        }
+    }
+    
+    function toggleDevProject(projectId) {
+        const content = document.getElementById('dev-project-' + projectId);
+        const chevron = document.getElementById('dev-chevron-' + projectId);
+        if (content) {
+            if (content.classList.contains('max-h-0')) {
+                content.classList.remove('max-h-0');
+                content.classList.add('max-h-[800px]');
+                if (chevron) chevron.classList.add('rotate-chevron');
+            } else {
+                content.classList.add('max-h-0');
+                content.classList.remove('max-h-[800px]');
+                if (chevron) chevron.classList.remove('rotate-chevron');
+            }
+        }
+    }
+    
+    function filterReleases(filter) {
+        currentFilter = filter;
+        const cards = document.querySelectorAll('.release-card');
+        const projectSections = document.querySelectorAll('.project-section');
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.classList.remove('active', 'bg-indigo-600', 'text-white');
+            btn.classList.add('bg-gray-100', 'text-gray-700');
+        });
+        const activeBtn = document.querySelector(`.filter-btn[data-filter="${filter}"]`);
+        if (activeBtn) {
+            activeBtn.classList.remove('bg-gray-100', 'text-gray-700');
+            activeBtn.classList.add('active', 'bg-indigo-600', 'text-white');
+        }
+        if (filter === 'all') {
+            cards.forEach(card => card.style.display = 'flex');
+            projectSections.forEach(section => section.style.display = 'block');
+        } else {
+            cards.forEach(card => card.style.display = 'none');
+            cards.forEach(card => {
+                const status = card.getAttribute('data-status');
+                const testingStarted = card.getAttribute('data-testing-started') === 'true';
+                if (filter === 'active_testing' && status === 'active' && testingStarted) card.style.display = 'flex';
+                else if (filter === 'ready_for_testing' && status === 'active' && !testingStarted) card.style.display = 'flex';
+                else if (filter === 'reported' && (status === 'ready_for_testing' || status === 'reported')) card.style.display = 'flex';
+                else if (status === filter) card.style.display = 'flex';
+            });
+            projectSections.forEach(section => {
+                const projectCards = section.querySelectorAll('.release-card');
+                let hasVisible = false;
+                projectCards.forEach(card => { if (card.style.display !== 'none') hasVisible = true; });
+                section.style.display = hasVisible ? 'block' : 'none';
+            });
+        }
+        updateProjectCounts();
+    }
+    
+    function updateProjectCounts() {
+        document.querySelectorAll('.project-section').forEach(section => {
+            const projectCards = section.querySelectorAll('.release-card');
+            let visibleCount = 0;
+            projectCards.forEach(card => { if (card.style.display !== 'none') visibleCount++; });
+            const countBadge = section.querySelector('.project-count');
+            if (countBadge) countBadge.textContent = `${visibleCount} release${visibleCount !== 1 ? 's' : ''}`;
+        });
+    }
+    
+    function filterDevReleases(filter) {
+        currentDevFilter = filter;
+        const cards = document.querySelectorAll('.dev-release-card');
+        const projectSections = document.querySelectorAll('.dev-project-section');
+        document.querySelectorAll('.dev-filter-btn').forEach(btn => {
+            btn.classList.remove('bg-indigo-600', 'text-white');
+            btn.classList.add('bg-gray-100', 'text-gray-700');
+        });
+        const activeBtn = document.querySelector(`.dev-filter-btn[data-dev-filter="${filter}"]`);
+        if (activeBtn) {
+            activeBtn.classList.remove('bg-gray-100', 'text-gray-700');
+            activeBtn.classList.add('bg-indigo-600', 'text-white');
+        }
+        if (filter === 'all') {
+            cards.forEach(card => card.style.display = 'flex');
+            projectSections.forEach(section => section.style.display = 'block');
+        } else if (filter === 'pending') {
+            cards.forEach(card => {
+                const status = card.getAttribute('data-dev-status');
+                card.style.display = (status === 'ready_for_testing' || status === 'reported') ? 'flex' : 'none';
+            });
+            projectSections.forEach(section => {
+                const projectCards = section.querySelectorAll('.dev-release-card');
+                let hasVisible = false;
+                projectCards.forEach(card => { if (card.style.display !== 'none') hasVisible = true; });
+                section.style.display = hasVisible ? 'block' : 'none';
+            });
+        } else if (filter === 'in_progress') {
+            cards.forEach(card => {
+                card.style.display = card.getAttribute('data-dev-status') === 'in_progress' ? 'flex' : 'none';
+            });
+            projectSections.forEach(section => {
+                const projectCards = section.querySelectorAll('.dev-release-card');
+                let hasVisible = false;
+                projectCards.forEach(card => { if (card.style.display !== 'none') hasVisible = true; });
+                section.style.display = hasVisible ? 'block' : 'none';
+            });
+        } else if (filter === 'ready_for_testing') {
+            cards.forEach(card => {
+                card.style.display = card.getAttribute('data-dev-status') === 'ready_for_testing' ? 'flex' : 'none';
+            });
+            projectSections.forEach(section => {
+                const projectCards = section.querySelectorAll('.dev-release-card');
+                let hasVisible = false;
+                projectCards.forEach(card => { if (card.style.display !== 'none') hasVisible = true; });
+                section.style.display = hasVisible ? 'block' : 'none';
+            });
+        }
+        updateDevProjectCounts();
+    }
+    
+    function updateDevProjectCounts() {
+        document.querySelectorAll('.dev-project-section').forEach(section => {
+            const projectCards = section.querySelectorAll('.dev-release-card');
+            let visibleCount = 0, pendingCount = 0, inProgressCount = 0;
+            projectCards.forEach(card => {
+                if (card.style.display !== 'none') {
+                    visibleCount++;
+                    const status = card.getAttribute('data-dev-status');
+                    if (status === 'ready_for_testing' || status === 'reported') pendingCount++;
+                    if (status === 'in_progress') inProgressCount++;
+                }
+            });
+            const countBadge = section.querySelector('.dev-project-count');
+            if (countBadge) countBadge.textContent = `${visibleCount} release${visibleCount !== 1 ? 's' : ''}`;
+            const pendingBadge = section.querySelector('.bg-yellow-100');
+            if (pendingBadge) pendingBadge.style.display = pendingCount > 0 ? 'inline-flex' : 'none';
+            if (pendingBadge && pendingCount > 0) pendingBadge.textContent = `${pendingCount} pending`;
+            const progressBadge = section.querySelector('.bg-blue-100');
+            if (progressBadge) progressBadge.style.display = inProgressCount > 0 ? 'inline-flex' : 'none';
+            if (progressBadge && inProgressCount > 0) progressBadge.textContent = `${inProgressCount} in progress`;
+        });
+    }
+    
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', function() { filterReleases(this.getAttribute('data-filter')); });
+    });
+    
+    document.querySelectorAll('.dev-filter-btn').forEach(btn => {
+        btn.addEventListener('click', function() { filterDevReleases(this.getAttribute('data-dev-filter')); });
+    });
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        {% if user and user.assigned_releases and user.role.name in ['Tester', 'Testing Head'] %}
+            var projects = {};
+            {% for release in user.assigned_releases %}
+                {% set project_name = release.project.name %}
+                if (!projects['{{ project_name|replace(' ', '_') }}']) {
+                    projects['{{ project_name|replace(' ', '_') }}'] = { name: '{{ project_name }}', hasActive: {{ 1 if release.status == 'active' and release.testing_started else 0 }} };
+                } else if ({{ 1 if release.status == 'active' and release.testing_started else 0 }}) {
+                    projects['{{ project_name|replace(' ', '_') }}'].hasActive = 1;
+                }
+            {% endfor %}
+            for (var projectId in projects) {
+                if (projects[projectId].hasActive) {
+                    setTimeout(function(pid) { toggleProject(pid); }, 100, projectId);
+                }
+            }
+        {% endif %}
+        {% if user and user.role.name in ['Developer', 'Project Head'] %}
+            var devProjects = {};
+            {% for project in user.projects %}
+                {% for release in project.releases %}
+                    {% set project_name = release.project.name %}
+                    if (!devProjects['{{ project_name|replace(' ', '_') }}']) {
+                        devProjects['{{ project_name|replace(' ', '_') }}'] = { name: '{{ project_name }}', hasActiveWork: {{ 1 if release.status in ['ready_for_testing', 'reported', 'in_progress'] else 0 }} };
+                    } else if ({{ 1 if release.status in ['ready_for_testing', 'reported', 'in_progress'] else 0 }}) {
+                        devProjects['{{ project_name|replace(' ', '_') }}'].hasActiveWork = 1;
+                    }
+                {% endfor %}
+            {% endfor %}
+            for (var projectId in devProjects) {
+                if (devProjects[projectId].hasActiveWork) {
+                    setTimeout(function(pid) { toggleDevProject(pid); }, 200, projectId);
+                }
+            }
+        {% endif %}
+    });
+    
+    var socket = io.connect('http://' + document.domain + ':' + location.port);
+    var alertsContainer = document.getElementById('bug-alerts-container');
+    if (socket) {
+        socket.on('new_bug_report', function(data) {
+            if (alertsContainer && alertsContainer.querySelector('p')) alertsContainer.innerHTML = '';
+            var alertDiv = document.createElement('div');
+            alertDiv.className = 'p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-lg shadow-sm mb-3 bug-alert transition-all duration-500';
+            alertDiv.innerHTML = `<div class="flex items-start"><i class="fas fa-bug text-red-500 mt-0.5 mr-3"></i><div><p class="font-bold text-sm">🚨 New Bug Reported!</p><p class="text-xs mt-1"><strong>Title:</strong> ${data.title}</p><p class="text-xs text-gray-600">Project: ${data.project_name} | Reporter: ${data.reporter_name}</p></div></div>`;
+            if (alertsContainer) {
+                alertsContainer.prepend(alertDiv);
+                while (alertsContainer.children.length > 5) alertsContainer.removeChild(alertsContainer.lastChild);
+            }
+        });
+    }
+    
+    async function showReleaseDetails(releaseId) {
+        const modal = new bootstrap.Modal(document.getElementById('releaseDetailsModal'));
+        const loading = document.getElementById('releaseDetailsLoading');
+        const content = document.getElementById('releaseDetailsContent');
+        modal.show();
+        loading.style.display = 'block';
+        content.style.display = 'none';
+        try {
+            const response = await fetch(`/release_details/${releaseId}`);
+            if (!response.ok) throw new Error('Network response was not ok');
+            const data = await response.json();
+            const baseUrl = viewBugsUrl;
+            
+            const clickableStats = `
+                <div class="grid grid-cols-3 gap-4 mb-6">
+                    <div onclick="window.location.href='${baseUrl}${data.project_id}?release_id=${releaseId}'" class="clickable-stat stat-total bg-white rounded-xl border border-gray-200 p-4 text-center cursor-pointer hover:shadow-lg transition-all">
+                        <p class="text-3xl font-bold text-blue-600">${data.total_bugs}</p>
+                        <p class="text-sm text-gray-600">Total Bugs</p>
+                        <p class="text-xs text-blue-500 mt-1"><i class="fas fa-mouse-pointer"></i> Click to view</p>
+                    </div>
+                    <div onclick="window.location.href='${baseUrl}${data.project_id}?release_id=${releaseId}&status=open'" class="clickable-stat stat-open bg-white rounded-xl border border-gray-200 p-4 text-center cursor-pointer hover:shadow-lg transition-all">
+                        <p class="text-3xl font-bold text-yellow-600">${data.open_bugs}</p>
+                        <p class="text-sm text-gray-600">Open Bugs</p>
+                        <p class="text-xs text-yellow-500 mt-1"><i class="fas fa-mouse-pointer"></i> Click to view</p>
+                    </div>
+                    <div onclick="window.location.href='${baseUrl}${data.project_id}?release_id=${releaseId}&status=closed'" class="clickable-stat stat-closed bg-white rounded-xl border border-gray-200 p-4 text-center cursor-pointer hover:shadow-lg transition-all">
+                        <p class="text-3xl font-bold text-green-600">${data.closed_bugs}</p>
+                        <p class="text-sm text-gray-600">Closed Bugs</p>
+                        <p class="text-xs text-green-500 mt-1"><i class="fas fa-mouse-pointer"></i> Click to view</p>
+                    </div>
+                </div>
+            `;
+            
+            let statusBreakdownHtml = '';
+            if (data.status_breakdown && Object.keys(data.status_breakdown).length > 0) {
+                statusBreakdownHtml = `
+                    <div class="bg-gray-50 rounded-xl p-4 mb-6">
+                        <h4 class="font-semibold text-gray-800 mb-3"><i class="fas fa-chart-pie text-indigo-500 mr-2"></i>Bug Status Breakdown</h4>
+                        <div class="flex flex-wrap gap-2">
+                            ${Object.entries(data.status_breakdown).map(([status, count]) => `
+                                <span onclick="window.location.href='${baseUrl}${data.project_id}?release_id=${releaseId}&status=${encodeURIComponent(status)}'"
+                                      class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-200 text-gray-700 cursor-pointer hover:bg-indigo-100 hover:text-indigo-700 transition-all">
+                                    ${status}: ${count} <i class="fas fa-arrow-right ml-1 text-xs"></i>
+                                </span>
+                            `).join('')}
+                        </div>
+                        <p class="text-xs text-gray-400 mt-2"><i class="fas fa-mouse-pointer"></i> Click on any status to view filtered bugs</p>
+                    </div>
+                `;
+            } else {
+                statusBreakdownHtml = `<div class="bg-gray-50 rounded-xl p-4 text-center mb-6"><i class="fas fa-chart-pie text-gray-300 text-2xl mb-2"></i><p class="text-gray-500">No bugs reported yet</p></div>`;
+            }
+            
+            let timelineHtml = '';
+            if (data.timeline && data.timeline.length > 0) {
+                timelineHtml = `
+                    <div class="bg-gray-50 rounded-xl p-4 mb-6">
+                        <h4 class="font-semibold text-gray-800 mb-3"><i class="fas fa-history text-indigo-500 mr-2"></i>Release Timeline</h4>
+                        <div class="relative">
+                            <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-300"></div>
+                            <div class="space-y-4">
+                                ${data.timeline.map(event => `
+                                    <div class="relative pl-10">
+                                        <div class="absolute left-0 top-1 w-8 h-8 rounded-full flex items-center justify-center bg-${event.event === 'Release Created' ? 'green' : event.event === 'Testing Started' ? 'blue' : event.event === 'Bugs Reported' ? 'yellow' : event.event === 'Reported to Developers' ? 'orange' : event.event === 'Development Started' ? 'indigo' : 'gray'}-100 text-${event.event === 'Release Created' ? 'green' : event.event === 'Testing Started' ? 'blue' : event.event === 'Bugs Reported' ? 'yellow' : event.event === 'Reported to Developers' ? 'orange' : event.event === 'Development Started' ? 'indigo' : 'gray'}-600">
+                                            <i class="fas ${event.event === 'Release Created' ? 'fa-rocket' : event.event === 'Testing Started' ? 'fa-play' : event.event === 'Bugs Reported' ? 'fa-bug' : event.event === 'Reported to Developers' ? 'fa-flag' : event.event === 'Development Started' ? 'fa-code' : 'fa-clock'} text-xs"></i>
+                                        </div>
+                                        <div class="bg-white rounded-lg p-3 border border-gray-200">
+                                            <div class="flex justify-between items-start mb-1"><span class="font-semibold text-gray-800">${event.event}</span><span class="text-xs text-gray-500">${event.timestamp}</span></div>
+                                            <p class="text-sm text-gray-600">${event.details}</p>
+                                            <p class="text-xs text-gray-400 mt-1">by ${event.user}</p>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                timelineHtml = `<div class="bg-gray-50 rounded-xl p-4 text-center mb-6"><i class="fas fa-history text-gray-300 text-2xl mb-2"></i><p class="text-gray-500">No timeline events yet</p></div>`;
+            }
+            
+            let devChangesHtml = '';
+            if (data.dev_changes && data.dev_changes.length > 0) {
+                devChangesHtml = `
+                    <div class="bg-gray-50 rounded-xl p-4 mb-6">
+                        <h4 class="font-semibold text-gray-800 mb-3"><i class="fas fa-code text-indigo-500 mr-2"></i>Developer Status Changes</h4>
+                        <div class="space-y-2 max-h-48 overflow-y-auto">
+                            ${data.dev_changes.map(change => `
+                                <div class="bg-blue-50 rounded-lg p-2 text-sm">
+                                    <div class="flex justify-between items-start"><span class="font-medium text-blue-800">${change.user}</span><span class="text-xs text-gray-500">${change.timestamp}</span></div>
+                                    <p class="text-gray-700 mt-1">${change.change}</p>
+                                    ${change.bug_title ? `<p class="text-xs text-gray-500 mt-1">Bug: ${change.bug_title}</p>` : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            } else {
+                devChangesHtml = `<div class="bg-gray-50 rounded-xl p-4 text-center mb-6"><i class="fas fa-code text-gray-300 text-2xl mb-2"></i><p class="text-gray-500">No developer status changes yet</p></div>`;
+            }
+            
+            let parentHtml = '';
+            if (data.parent_info) {
+                parentHtml = `
+                    <div class="bg-gray-50 rounded-xl p-4 mb-6">
+                        <h4 class="font-semibold text-gray-800 mb-3"><i class="fas fa-level-up-alt text-indigo-500 mr-2"></i>Parent Release</h4>
+                        <div class="flex justify-between items-center">
+                            <div><p class="font-bold text-indigo-600">${data.parent_info.version_number}</p><p class="text-xs text-gray-500">Created: ${data.parent_info.created_at}</p></div>
+                            <div class="text-right"><span class="badge ${getStatusColor(data.parent_info.status)} px-2 py-1">${data.parent_info.status.replace(/_/g, ' ')}</span><p class="text-xs text-gray-500 mt-1">${data.parent_info.closed_bugs}/${data.parent_info.total_bugs} bugs closed</p></div>
+                        </div>
+                        <button onclick="showReleaseDetails(${data.parent_info.id})" class="mt-2 text-xs text-indigo-600 hover:text-indigo-800"><i class="fas fa-eye me-1"></i>View Parent Details</button>
+                    </div>
+                `;
+            }
+            
+            let childHtml = '';
+            if (data.child_info && data.child_info.length > 0) {
+                childHtml = `
+                    <div class="bg-gray-50 rounded-xl p-4 mb-6">
+                        <h4 class="font-semibold text-gray-800 mb-3"><i class="fas fa-level-down-alt text-indigo-500 mr-2"></i>Child Releases (${data.child_info.length})</h4>
+                        <div class="space-y-2 max-h-48 overflow-y-auto">
+                            ${data.child_info.map(child => `
+                                <div class="bg-white rounded-lg p-3 flex justify-between items-center border border-gray-200">
+                                    <div><p class="font-medium text-gray-800">${child.version_number}</p><p class="text-xs text-gray-500">Created: ${child.created_at}</p></div>
+                                    <div class="text-right"><span class="badge ${getStatusColor(child.status)} px-2 py-1 text-xs">${child.status.replace(/_/g, ' ')}</span><p class="text-xs text-gray-500 mt-1">${child.closed_bugs}/${child.total_bugs} bugs closed</p><button onclick="showReleaseDetails(${child.id})" class="mt-1 text-xs text-indigo-600 hover:text-indigo-800"><i class="fas fa-eye me-1"></i>View</button></div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            content.innerHTML = `
+                <div class="space-y-4">
+                    <div class="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-4">
+                        <div class="flex justify-between items-start">
+                            <div><h3 class="text-2xl font-bold text-indigo-700">${data.version_number}</h3><p class="text-sm text-gray-600 mt-1">Released by ${data.created_by} on ${data.created_at}</p></div>
+                            <span class="badge ${getStatusColor(data.status)} px-3 py-1.5 text-sm font-semibold">${data.status_display}</span>
+                        </div>
+                    </div>
+                    ${clickableStats}
+                    <div class="bg-white rounded-xl border border-gray-200 p-4"><div class="flex justify-between items-center mb-2"><span class="text-sm font-medium text-gray-700">Completion Progress</span><span class="text-sm font-semibold text-green-600">${data.progress}%</span></div><div class="w-full bg-gray-200 rounded-full h-2.5"><div class="bg-green-500 rounded-full h-2.5 transition-all" style="width: ${data.progress}%"></div></div></div>
+                    ${statusBreakdownHtml}
+                    ${timelineHtml}
+                    ${devChangesHtml}
+                    ${parentHtml}
+                    ${childHtml}
+                    ${data.assigned_testers && data.assigned_testers.length > 0 ? `
+                    <div class="bg-gray-50 rounded-xl p-4"><h4 class="font-semibold text-gray-800 mb-3"><i class="fas fa-users text-indigo-500 mr-2"></i>Assigned Testers</h4><div class="flex flex-wrap gap-2">${data.assigned_testers.map(tester => `<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">${tester.name}</span>`).join('')}</div></div>
+                    ` : ''}
+                </div>
+            `;
+            
+            loading.style.display = 'none';
+            content.style.display = 'block';
+        } catch (error) {
+            console.error('Error fetching release details:', error);
+            loading.innerHTML = '<div class="alert alert-danger">Error loading release details</div>';
+        }
+    }
+    
+    function getStatusColor(status) {
+        const colors = { 'active': 'bg-green-100', 'reported': 'bg-orange-100', 'submitted_by_tester': 'bg-yellow-100', 'in_progress': 'bg-blue-100', 'ready_for_testing': 'bg-purple-100', 'closed': 'bg-gray-100' };
+        return colors[status] || 'bg-gray-100';
+    }
+</script>
+{% endblock %}

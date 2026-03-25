@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bug Details and Filter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .bug-list-container {
+            max-height: calc(100vh - 520px);
+            overflow-y: auto;
+        }
+        .bug-list-item.active {
+            background-color: #eef2ff;
+            font-weight: 600;
+            color: #3730a3;
+            border-left: 4px solid #4f46e5;
+        }
+        .badge-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            line-height: 1; 
+            text-transform: uppercase;
+        }
+        .bug-list-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        .bug-list-container::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 10px;
+        }
+        .bug-list-container::-webkit-scrollbar-track {
+            background: #f3f4f6;
+        }
+        .tab-button.active {
+            border-bottom: 3px solid #4f46e5;
+            color: #4f46e5;
+            font-weight: 700;
+        }
+        .release-selector option:checked {
+            background-color: #4f46e5;
+            color: white;
+        }
+        .clickable-stat {
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .clickable-stat:hover {
+            transform: translateY(-2px);
+        }
+        .stat-total:hover { background-color: #eff6ff; }
+        .stat-open:hover { background-color: #fef9c3; }
+        .stat-closed:hover { background-color: #dcfce7; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <nav class="bg-white border-b border-gray-200 shadow-lg sticky top-0 z-20">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center">
+                    <a class="text-indigo-600 text-2xl font-extrabold tracking-tight" href="{{ url_for('main.dashboard') }}">
+                        <i class="fas fa-bug mr-2"></i> Bug Tracker
+                    </a>
+                </div>
+                <div class="hidden sm:block sm:ml-6">
+                    <div class="flex space-x-4">
+                        <a href="{{ url_for('main.dashboard') }}" class="text-gray-600 hover:bg-indigo-50 hover:text-indigo-700 px-3 py-2 rounded-lg text-sm font-medium">Dashboard</a>
+                        <a href="{{ url_for('main.release_build') }}" class="text-gray-600 hover:bg-indigo-50 hover:text-indigo-700 px-3 py-2 rounded-lg text-sm font-medium">Releases</a>
+                    </div>
+                </div>
+                <button type="button" class="sm:hidden text-gray-500 hover:text-gray-700 focus:outline-none" onclick="document.getElementById('mobile-menu').classList.toggle('hidden')">
+                    <i class="fas fa-bars h-6 w-6"></i>
+                </button>
+            </div>
+        </div>
+        <div class="hidden sm:hidden" id="mobile-menu">
+            <div class="px-2 pt-2 pb-3 space-y-1 bg-gray-50 border-t border-gray-200">
+                <a href="{{ url_for('main.dashboard') }}" class="text-gray-700 hover:bg-indigo-100 hover:text-indigo-700 block px-3 py-2 rounded-md text-base font-medium">Dashboard</a>
+                <a href="{{ url_for('main.release_build') }}" class="text-gray-700 hover:bg-indigo-100 hover:text-indigo-700 block px-3 py-2 rounded-md text-base font-medium">Releases</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto px-4 sm:px-6 lg:px-8 mt-8 pb-10">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="p-4 mb-6 text-sm rounded-xl font-medium
+                        {% if category == 'success' %} bg-green-100 text-green-800 border border-green-300 {% elif category == 'danger' %} bg-red-100 text-red-800 border border-red-300 {% else %} bg-blue-100 text-blue-800 border border-blue-300 {% endif %}" role="alert">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <!-- Bug List Card (Left Column) -->
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-2xl shadow-2xl shadow-indigo-200/50 h-full flex flex-col lg:sticky lg:top-20">
+                    <div class="bg-indigo-700 text-white p-4 rounded-t-2xl font-extrabold text-lg flex items-center shadow-md">
+                        <i class="fas fa-list-ul mr-2"></i> 
+                        <span id="bug-list-title">Bugs by Release</span>
+                    </div>
+                    <div class="p-4 flex-grow flex flex-col">
+                        <input type="hidden" id="project-id" value="{{ project.id }}">
+                        <input type="hidden" id="current-user-role" value="{{ current_user_role_name }}">
+                        <input type="hidden" id="filter-release-id" value="{{ filter_release_id }}">
+                        
+                        <!-- Release Selector Dropdown -->
+                        <div class="mb-4">
+                            <label class="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">
+                                <i class="fas fa-code-branch mr-1"></i> Select Release / Build
+                            </label>
+                            <select id="release-selector" class="release-selector w-full px-4 py-2 text-sm border-2 border-gray-300 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 shadow-sm bg-white">
+                                <option value="all" {% if not filter_release_id %}selected{% endif %}>All Releases</option>
+                                {% set all_releases = project.releases|sort(attribute='timestamp', reverse=true) %}
+                                {% for release in all_releases %}
+                                    <option value="{{ release.id }}" {% if filter_release_id == release.id %}selected{% endif %}>
+                                        {{ release.version_number }} ({{ release.status|replace('_', ' ')|title }})
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Filter and Search Controls -->
+                        <div class="space-y-3 mb-4">
+                            <div class="relative">
+                                <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm"></i>
+                                <input type="text" class="w-full pl-10 pr-4 py-2 text-sm border-2 border-gray-300 rounded-xl focus:ring-indigo-500 focus:border-indigo-500" id="bug-search-input" placeholder="Search title, ID...">
+                            </div>
+
+                            <select class="w-full px-4 py-2 text-sm border-2 border-gray-300 rounded-xl" id="bug-status-filter">
+                                <option value="all">Filter by Status</option>
+                                {% for status in statuses %}
+                                    <option value="{{ status.id }}">{{ status.name }}</option>
+                                {% endfor %}
+                            </select>
+
+                            <select class="w-full px-4 py-2 text-sm border-2 border-gray-300 rounded-xl" id="bug-priority-filter">
+                                <option value="all">Filter by Priority</option>
+                                {% for priority in priorities %}
+                                    <option value="{{ priority.id }}">{{ priority.name }}</option>
+                                {% endfor %}
+                            </select>
+
+                            <select class="w-full px-4 py-2 text-sm border-2 border-gray-300 rounded-xl" id="bug-assignee-filter">
+                                <option value="all">Filter by Assigned Dev</option>
+                                {% if assignable_users %}
+                                    {% for user in assignable_users %}
+                                        <option value="{{ user.id }}">{{ user.name }}</option>
+                                    {% endfor %}
+                                {% endif %}
+                            </select>
+                            
+                            <select class="w-full px-4 py-2 text-sm border-2 border-gray-300 rounded-xl" id="bug-reporter-filter">
+                                <option value="all">Filter by Reported Tester</option>
+                                {% if reporter_users %}
+                                    {% for user in reporter_users %}
+                                        <option value="{{ user.id }}">{{ user.name }}</option>
+                                    {% endfor %}
+                                {% endif %}
+                            </select>
+                        </div>
+                        
+                        <div class="bug-list-container flex-grow border-t border-gray-200 pt-2">
+                            <ul class="divide-y divide-gray-100" id="bug-list">
+                                {% if bugs_in_release %}
+                                    {% for bug in bugs_in_release %}
+                                        <a href="{{ url_for('main.view_bugs', project_id=project.id, bug_id=bug.id) }}{% if filter_release_id %}?release_id={{ filter_release_id }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}" 
+                                           data-bug-id="{{ bug.id }}" 
+                                           data-title="{{ bug.title | lower }}"
+                                           data-status-id="{{ bug.status.id | default('') }}"
+                                           data-priority-id="{{ bug.priority.id | default('') }}"
+                                           data-assignee-id="{{ bug.assignee.id | default('') }}"
+                                           data-reporter-id="{{ bug.reporter.id | default('') }}"
+                                           data-release-id="{{ bug.release.id | default('') }}"
+                                           class="bug-list-item block p-3 text-gray-700 hover:bg-indigo-50 transition duration-150 ease-in-out cursor-pointer flex justify-between items-center rounded-lg 
+                                           {% if selected_bug and bug.id == selected_bug.id %} active {% endif %}">
+                                            <span class="truncate pr-2 text-sm font-medium">#{{ bug.id }} - {{ bug.title }}</span>
+                                            <span class="badge-status bg-gray-200 text-gray-700 bug-list-status flex-shrink-0" 
+                                                  data-status-name="{{ bug.status.name | lower | default('') }}">
+                                                {{ bug.status.name | default('N/A') }}
+                                            </span>
+                                        </a>
+                                    {% endfor %}
+                                {% else %}
+                                    <li class="p-3 text-gray-500 text-center text-sm">
+                                        {% if filter_release_id %}
+                                            No bugs found in this release.
+                                        {% else %}
+                                            No bugs found in this project.
+                                        {% endif %}
+                                    </li>
+                                {% endif %}
+                            </ul>
+                            <div id="no-bugs-message" class="hidden p-3 text-gray-500 text-center text-sm">No bugs match your current filters.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bug Details Card (Right Column) -->
+            <div class="lg:col-span-3">
+                <div id="bug-details-container">
+                    {% if selected_bug %}
+                        {% set can_update_status = false %}
+                        {% set status_update_label = '' %}
+                        
+                        <!-- Role-based status update permissions -->
+                        {% if current_user_role_name in ['DEVELOPER', 'PROJECT_HEAD'] %}
+                            {% if selected_bug.release and selected_bug.release.status == 'in_progress' %}
+                                {% set can_update_status = true %}
+                                {% set status_update_label = 'Development In Progress' %}
+                                <script>
+                                    console.log("DEBUG - Developer/Project Head: Status update allowed");
+                                    console.log("DEBUG - Release: {{ selected_bug.release.version_number }}, Status: {{ selected_bug.release.status }}");
+                                </script>
+                            {% endif %}
+                        {% elif current_user_role_name in ['TESTER', 'TESTING_HEAD'] %}
+                            {% if selected_bug.release and selected_bug.release.status == 'active' and selected_bug.release.testing_started %}
+                                {% set can_update_status = true %}
+                                {% set status_update_label = 'Testing Active' %}
+                                <script>
+                                    console.log("DEBUG - Tester/Testing Head: Status update allowed");
+                                    console.log("DEBUG - Release: {{ selected_bug.release.version_number }}, Status: {{ selected_bug.release.status }}, Testing Started: {{ selected_bug.release.testing_started }}");
+                                </script>
+                            {% endif %}
+                        {% elif current_user_role_name in ['ADMIN'] %}
+                            {% set can_update_status = true %}
+                            {% set status_update_label = 'Admin Override' %}
+                            <script>console.log("DEBUG - Admin: Status update allowed (override)");</script>
+                        {% else %}
+                            <script>console.log("DEBUG - No permission: User role {{ current_user_role_name }}");</script>
+                        {% endif %}
+                        
+                        <!-- Status Update Restriction Warning - Developer/Project Head -->
+                        {% if current_user_role_name in ['DEVELOPER', 'PROJECT_HEAD'] and selected_bug.release and selected_bug.release.status != 'in_progress' %}
+                        <div class="mb-4 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 rounded-xl">
+                            <div class="flex items-center">
+                                <i class="fas fa-lock mr-3 text-yellow-600 text-xl"></i>
+                                <div>
+                                    <p class="font-bold">Status Update Restricted</p>
+                                    <p class="text-sm">This bug belongs to release <strong>{{ selected_bug.release.version_number }}</strong> which is in <strong>{{ selected_bug.release.status|replace('_', ' ')|title }}</strong> state.</p>
+                                    <p class="text-sm mt-1">Developers can only update bug status when the release is <strong class="text-green-600">In Progress</strong>.</p>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Status Update Restriction Warning - Tester/Testing Head -->
+                        {% if current_user_role_name in ['TESTER', 'TESTING_HEAD'] and selected_bug.release and not (selected_bug.release.status == 'active' and selected_bug.release.testing_started) %}
+                        <div class="mb-4 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 rounded-xl">
+                            <div class="flex items-center">
+                                <i class="fas fa-lock mr-3 text-yellow-600 text-xl"></i>
+                                <div>
+                                    <p class="font-bold">Status Update Restricted</p>
+                                    <p class="text-sm">This bug belongs to release <strong>{{ selected_bug.release.version_number }}</strong>.</p>
+                                    <p class="text-sm mt-1">Testers can only update bug status when the release is <strong class="text-green-600">Active</strong> and <strong class="text-green-600">Testing has started</strong>.</p>
+                                    <p class="text-sm">Current status: <strong>{{ selected_bug.release.status|replace('_', ' ')|title }}</strong>, Testing Started: <strong>{{ 'Yes' if selected_bug.release.testing_started else 'No' }}</strong></p>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Primary Bug Details Section -->
+                        <div class="bg-white rounded-2xl shadow-2xl shadow-gray-300/50 mb-6 border border-gray-200">
+                            <div class="bg-indigo-600 text-white p-5 rounded-t-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center shadow-lg">
+                                <h4 class="text-2xl font-extrabold mb-2 sm:mb-0">Bug #<span id="bug-id">{{ selected_bug.id }}</span>: <span id="bug-title">{{ selected_bug.title | default('N/A') }}</span></h4>
+                                <span class="badge-status text-lg px-4 py-1.5" id="bug-status" data-status-name="{{ selected_bug.status.name | lower | default('') }}">{{ selected_bug.status.name | default('N/A') }}</span>
+                            </div>
+                            <div class="p-6">
+                                <h5 class="text-xl font-bold mb-4 border-b pb-2 text-gray-800 flex items-center"><i class="fas fa-file-alt mr-3 text-indigo-500"></i> Description</h5>
+                                <p class="text-gray-700 mb-8 whitespace-pre-line leading-relaxed border-l-4 border-gray-200 pl-4 py-1" id="bug-description">{{ selected_bug.description | default('No description provided.') }}</p>
+                                
+                                <h5 class="text-xl font-bold mb-4 border-b pb-2 text-gray-800 flex items-center"><i class="fas fa-info-circle mr-3 text-indigo-500"></i> Metadata</h5>
+                                <div class="grid grid-cols-2 md:grid-cols-4 gap-y-6 gap-x-6 mb-8">
+                                    <div class="space-y-1 bg-gray-50 p-3 rounded-lg"><p class="text-xs uppercase text-gray-500 font-medium">Project</p><p class="text-sm font-semibold text-gray-800" id="bug-project">{{ selected_bug.project.name | default('N/A') }}</p></div>
+                                    <div class="space-y-1 bg-gray-50 p-3 rounded-lg"><p class="text-xs uppercase text-gray-500 font-medium">Priority</p><p class="text-sm font-extrabold text-red-700" id="bug-priority">{{ selected_bug.priority.name | default('N/A') }}</p></div>
+                                    <div class="space-y-1 bg-gray-50 p-3 rounded-lg"><p class="text-xs uppercase text-gray-500 font-medium">Release / Build</p><p class="text-sm font-semibold text-indigo-600" id="bug-release">{{ selected_bug.release.version_number | default('N/A') }}{% if selected_bug.release and selected_bug.release.status %}<span class="text-xs text-gray-500 ml-1">({{ selected_bug.release.status|replace('_', ' ')|title }})</span>{% endif %}</p></div>
+                                    <div class="space-y-1 bg-gray-50 p-3 rounded-lg"><p class="text-xs uppercase text-gray-500 font-medium">Reported By</p><p class="text-sm text-gray-800" id="bug-reporter">{{ selected_bug.reporter.name | default('N/A') }}</p></div>
+                                    <div class="space-y-1 bg-gray-50 p-3 rounded-lg"><p class="text-xs uppercase text-gray-500 font-medium">Assigned To</p><p class="text-sm text-gray-800" id="bug-assigned-to">{{ selected_bug.assignee.name | default('N/A') }}</p></div>
+                                    <div class="space-y-1 bg-gray-50 p-3 rounded-lg"><p class="text-xs uppercase text-gray-500 font-medium">Module / Sub-Module</p><p class="text-sm text-gray-800" id="bug-module">{{ selected_bug.module.name | default('N/A') }} / {{ selected_bug.sub_module.name | default('N/A') }}</p></div>
+                                    <div class="space-y-1 bg-gray-50 p-3 rounded-lg"><p class="text-xs uppercase text-gray-500 font-medium">Reopen Count</p><p class="text-sm font-semibold text-gray-800" id="bug-reopen-count">{{ selected_bug.reopen_count | default(0) }}</p></div>
+                                    <div class="space-y-1 bg-gray-50 p-3 rounded-lg"><p class="text-xs uppercase text-gray-500 font-medium">Reported On</p><p class="text-sm text-gray-800" id="bug-timestamp">{{ selected_bug.timestamp.strftime('%Y-%m-%d %H:%M') | default('N/A') }}</p></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Tabbed Content -->
+                        <div class="bg-white rounded-2xl shadow-2xl shadow-gray-300/50 mb-6 border border-gray-200">
+                            <div class="flex border-b border-gray-200">
+                                <button id="tab-btn-comments" onclick="showBugTab('comments')" class="tab-button active flex-1 py-3 px-4 text-center text-gray-600 hover:text-indigo-600 transition-colors duration-150 rounded-tl-2xl"><i class="fas fa-comments mr-2"></i> Comments</button>
+                                <button id="tab-btn-history" onclick="showBugTab('history')" class="tab-button flex-1 py-3 px-4 text-center text-gray-600 hover:text-indigo-600 transition-colors duration-150"><i class="fas fa-history mr-2"></i> History</button>
+                                <button id="tab-btn-screenshots" onclick="showBugTab('screenshots')" class="tab-button flex-1 py-3 px-4 text-center text-gray-600 hover:text-indigo-600 transition-colors duration-150 rounded-tr-2xl"><i class="fas fa-image mr-2"></i> Screenshots</button>
+                            </div>
+                            
+                            <div class="p-6">
+                                <div id="tab-content-comments" class="tab-content">
+                                    <h5 class="text-xl font-bold mb-4 text-gray-800">Conversation Feed</h5>
+                                    <div class="max-h-96 overflow-y-auto pr-2" id="bug-comments-container">
+                                        <div class="space-y-4">
+                                            {% if selected_bug.comments %}
+                                                {% for comment in selected_bug.comments | sort(attribute='timestamp', reverse=false) %}
+                                                    <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 shadow-sm">
+                                                        <small class="text-gray-500 float-right font-light">{{ comment.timestamp.strftime('%Y-%m-%d %H:%M') | default('N/A') }}</small>
+                                                        <strong class="text-gray-900 text-sm block mb-1 font-semibold">{{ comment.user.name | default('Unknown User') }}</strong>
+                                                        <p class="text-gray-700 text-sm whitespace-pre-line leading-snug">{{ comment.comment_text | default('No comment text') }}</p>
+                                                    </div>
+                                                {% endfor %}
+                                            {% else %}
+                                                <p class="text-gray-500 text-center text-sm">No comments yet. Be the first!</p>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <form action="{{ url_for('main.add_comment', bug_id=selected_bug.id) }}" method="POST" class="mt-6 pt-4 border-t border-gray-200">
+                                        <h6 class="text-lg font-semibold mb-3 text-gray-800">Add New Comment</h6>
+                                        <div class="mb-3"><textarea name="content" class="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 shadow-inner resize-none" rows="3" placeholder="Add a new comment..." required></textarea></div>
+                                        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 px-4 rounded-xl transition duration-150 ease-in-out shadow-md hover:shadow-lg"><i class="fas fa-plus mr-1"></i> Add Comment</button>
+                                    </form>
+                                </div>
+                                <div id="tab-content-history" class="tab-content hidden">
+                                    <h5 class="text-xl font-bold mb-4 text-gray-800">Audit Trail</h5>
+                                    <div class="max-h-96 overflow-y-auto pr-2" id="bug-history-container">
+                                        <ul class="divide-y divide-gray-200">
+                                            {% if selected_bug.history %}
+                                                {% for history in selected_bug.history | sort(attribute='timestamp', reverse=true) %}
+                                                    <li class="py-3 px-2 hover:bg-gray-50 rounded-lg transition duration-150"><small class="text-gray-500 float-right">{{ history.timestamp.strftime('%Y-%m-%d %H:%M') | default('N/A') }}</small><p class="text-sm"><strong class="text-gray-900">{{ history.user.name | default('System') }}</strong> <span class="text-gray-600 ml-1">{{ history.change_description | default('Change detected') }}</span></p></li>
+                                                {% endfor %}
+                                            {% else %}
+                                                <li class="py-4 text-gray-500 text-center text-sm">No history records found.</li>
+                                            {% endif %}
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div id="tab-content-screenshots" class="tab-content hidden">
+                                    <h5 class="text-xl font-bold mb-4 text-gray-800">Attached Media</h5>
+                                    <div id="bug-screenshots-container">
+                                        {% if selected_bug.screenshots %}
+                                            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                                {% for screenshot in selected_bug.screenshots %}
+                                                    <div class="overflow-hidden rounded-xl shadow-lg hover:shadow-2xl transition duration-300 ease-in-out border-2 border-transparent hover:border-indigo-500 cursor-pointer"><a href="{{ url_for('static', filename='screenshots/' + screenshot.file_path) }}" target="_blank"><img src="{{ url_for('static', filename='screenshots/' + screenshot.file_path) }}" class="w-full h-32 md:h-40 object-cover" alt="Bug Screenshot" onerror="this.onerror=null;this.src='https://placehold.co/600x400/374151/FFFFFF?text=Image+Missing';"></a></div>
+                                                {% endfor %}
+                                            </div>
+                                        {% else %}
+                                            <p class="text-gray-500 text-center p-4">No screenshots available.</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Update Bug Status -->
+                        {% if can_update_status %}
+                        <div class="bg-white rounded-2xl shadow-2xl shadow-gray-300/50 mb-6 border border-gray-200">
+                            <div class="bg-green-600 text-white p-4 rounded-t-2xl font-bold flex items-center">
+                                <i class="fas fa-pencil-alt mr-3"></i> Update Bug Status
+                                <span class="ml-3 text-xs bg-green-500 px-2 py-1 rounded-full">{{ status_update_label }}</span>
+                            </div>
+                            <div class="p-6">
+                                <form action="{{ url_for('main.update_bug_status', bug_id=selected_bug.id) }}" method="POST" enctype="multipart/form-data">
+                                    <div class="mb-4"><label for="status" class="block text-sm font-medium text-gray-700 mb-2">Change Status</label><select name="status" id="status" class="w-full px-4 py-2 border-2 border-gray-300 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 shadow-sm"><option value="">Loading statuses...</option></select></div>
+                                    <div id="reopen-fields" class="space-y-4 hidden pt-4 border-t-4 border-red-400 bg-red-50 rounded-xl p-4"><p class="text-sm font-bold text-red-700 flex items-center"><i class="fas fa-exclamation-triangle mr-2"></i> Required for Reopening:</p><div class="mb-3"><label for="reopen_comment" class="block text-sm font-medium text-gray-700 mb-1">Reopen Comment (Required)</label><textarea name="reopen_comment" id="reopen_comment" class="w-full px-4 py-2 border border-red-300 rounded-xl focus:ring-red-500 focus:border-red-500 shadow-inner resize-none" rows="3" placeholder="Why is this bug being reopened?"></textarea></div><div class="mb-3"><label for="new_screenshot" class="block text-sm font-medium text-gray-700 mb-1">New Screenshot (Optional)</label><input type="file" name="new_screenshot" id="new_screenshot" class="w-full text-gray-700 border border-red-200 rounded-xl file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-red-100 file:text-red-700 hover:file:bg-red-200 file:cursor-pointer"></div></div>
+                                    <button type="submit" class="mt-4 w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 px-4 rounded-xl transition duration-150 ease-in-out shadow-md hover:shadow-lg"><i class="fas fa-save mr-1"></i> Update Status</button>
+                                </form>
+                            </div>
+                        </div>
+                        {% elif current_user_role_name in ['DEVELOPER', 'PROJECT_HEAD'] and selected_bug.release and selected_bug.release.status != 'in_progress' %}
+                        <div class="bg-white rounded-2xl shadow-2xl shadow-gray-300/50 mb-6 border border-gray-200 opacity-75">
+                            <div class="bg-gray-400 text-white p-4 rounded-t-2xl font-bold flex items-center"><i class="fas fa-lock mr-3"></i> Update Bug Status (Locked - Developer)</div>
+                            <div class="p-6 text-center text-gray-500"><i class="fas fa-ban text-4xl mb-3 text-gray-400"></i><p>Status updates are locked for this bug.</p><p class="text-sm mt-2">Release <strong>{{ selected_bug.release.version_number }}</strong> is in <strong>{{ selected_bug.release.status|replace('_', ' ')|title }}</strong> state.</p><p class="text-sm">Developers can only update status when the release is <strong class="text-green-600">In Progress</strong>.</p></div>
+                        </div>
+                        {% elif current_user_role_name in ['TESTER', 'TESTING_HEAD'] and selected_bug.release and not (selected_bug.release.status == 'active' and selected_bug.release.testing_started) %}
+                        <div class="bg-white rounded-2xl shadow-2xl shadow-gray-300/50 mb-6 border border-gray-200 opacity-75">
+                            <div class="bg-gray-400 text-white p-4 rounded-t-2xl font-bold flex items-center"><i class="fas fa-lock mr-3"></i> Update Bug Status (Locked - Tester)</div>
+                            <div class="p-6 text-center text-gray-500"><i class="fas fa-ban text-4xl mb-3 text-gray-400"></i><p>Status updates are locked for this bug.</p><p class="text-sm mt-2">Release <strong>{{ selected_bug.release.version_number }}</strong> is in <strong>{{ selected_bug.release.status|replace('_', ' ')|title }}</strong> state with testing started: <strong>{{ 'Yes' if selected_bug.release.testing_started else 'No' }}</strong>.</p><p class="text-sm">Testers can only update status when the release is <strong class="text-green-600">Active</strong> and <strong class="text-green-600">Testing has started</strong>.</p></div>
+                        </div>
+                        {% endif %}
+
+                    {% else %}
+                        <div class="p-10 bg-indigo-50 text-indigo-700 rounded-2xl border-2 border-indigo-300 text-center shadow-2xl" role="alert">
+                            <i class="fas fa-arrow-left fa-3x mb-4 text-indigo-500 animate-pulse"></i>
+                            <h3 class="text-2xl font-extrabold">No Bug Selected</h3>
+                            <p class="mt-3 text-lg">Please select a bug from the list on the left to view its details, history, and update its status.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const statusSelect = document.getElementById('status');
+            const reopenFields = document.getElementById('reopen-fields');
+            const reopenComment = document.getElementById('reopen_comment');
+            const bugStatusBadge = document.getElementById('bug-status');
+            const releaseSelector = document.getElementById('release-selector');
+            const bugListItems = document.querySelectorAll('.bug-list-item');
+            const projectId = document.getElementById('project-id').value;
+            const filterReleaseId = document.getElementById('filter-release-id')?.value;
+            
+            // Function to navigate when release is selected
+            function filterByRelease() {
+                const selectedReleaseId = releaseSelector ? releaseSelector.value : 'all';
+                const currentStatusFilter = document.getElementById('bug-status-filter').value;
+                
+                let url = `/view_bugs/${projectId}`;
+                const params = new URLSearchParams();
+                
+                if (selectedReleaseId !== 'all') {
+                    params.set('release_id', selectedReleaseId);
+                }
+                if (currentStatusFilter && currentStatusFilter !== 'all') {
+                    params.set('status', currentStatusFilter);
+                }
+                
+                const queryString = params.toString();
+                if (queryString) {
+                    url += '?' + queryString;
+                }
+                
+                window.location.href = url;
+            }
+            
+            // Fetch allowed statuses from API
+            const bugId = document.getElementById('bug-id') ? document.getElementById('bug-id').textContent : null;
+            if (bugId && statusSelect) {
+                fetch(`/get_bug_details/${bugId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        statusSelect.innerHTML = '';
+                        if (data.statuses && data.statuses.length > 0) {
+                            data.statuses.forEach(status => {
+                                const option = document.createElement('option');
+                                option.value = status.id;
+                                option.textContent = status.name;
+                                option.disabled = status.disabled;
+                                if (status.id === data.status_id) option.selected = true;
+                                statusSelect.appendChild(option);
+                            });
+                        }
+                        if (data.reopen_fields_visible) {
+                            reopenFields.classList.remove('hidden');
+                            if (reopenComment) reopenComment.setAttribute('required', 'required');
+                        } else {
+                            reopenFields.classList.add('hidden');
+                            if (reopenComment) reopenComment.removeAttribute('required');
+                        }
+                        if (bugStatusBadge) {
+                            bugStatusBadge.textContent = data.status_name;
+                            bugStatusBadge.setAttribute('data-status-name', data.status_name.toLowerCase());
+                            setStatusBadgeColor(bugStatusBadge);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching bug details:', error);
+                        statusSelect.innerHTML = '<option value="" disabled selected>Error loading statuses</option>';
+                    });
+            }
+            
+            // Filter Bugs
+            const searchInput = document.getElementById('bug-search-input');
+            const statusFilter = document.getElementById('bug-status-filter');
+            const priorityFilter = document.getElementById('bug-priority-filter');
+            const assigneeFilter = document.getElementById('bug-assignee-filter');
+            const reporterFilter = document.getElementById('bug-reporter-filter');
+            const noBugsMessage = document.getElementById('no-bugs-message');
+            
+            const filterBugs = () => {
+                const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+                const selectedStatusId = statusFilter ? statusFilter.value : 'all';
+                const selectedPriorityId = priorityFilter ? priorityFilter.value : 'all';
+                const selectedAssigneeId = assigneeFilter ? assigneeFilter.value : 'all';
+                const selectedReporterId = reporterFilter ? reporterFilter.value : 'all';
+                const selectedReleaseId = releaseSelector ? releaseSelector.value : 'all';
+                
+                let visibleBugsCount = 0;
+                
+                bugListItems.forEach(item => {
+                    const title = item.getAttribute('data-title') || '';
+                    const bugId = item.getAttribute('data-bug-id') || '';
+                    const itemStatusId = item.getAttribute('data-status-id') || '';
+                    const itemPriorityId = item.getAttribute('data-priority-id') || '';
+                    const itemAssigneeId = item.getAttribute('data-assignee-id') || '';
+                    const itemReporterId = item.getAttribute('data-reporter-id') || '';
+                    const itemReleaseId = item.getAttribute('data-release-id') || '';
+                    
+                    const matchesSearch = title.includes(searchTerm) || bugId.includes(searchTerm);
+                    const matchesStatus = selectedStatusId === 'all' || itemStatusId === selectedStatusId;
+                    const matchesPriority = selectedPriorityId === 'all' || itemPriorityId === selectedPriorityId;
+                    const matchesAssignee = selectedAssigneeId === 'all' || (itemAssigneeId !== '' && itemAssigneeId === selectedAssigneeId);
+                    const matchesReporter = selectedReporterId === 'all' || (itemReporterId !== '' && itemReporterId === selectedReporterId);
+                    const matchesRelease = selectedReleaseId === 'all' || itemReleaseId === selectedReleaseId;
+                    
+                    const isVisible = matchesSearch && matchesStatus && matchesPriority && matchesAssignee && matchesReporter && matchesRelease;
+                    
+                    if (isVisible) {
+                        item.style.display = 'flex';
+                        visibleBugsCount++;
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+                
+                if (visibleBugsCount === 0 && noBugsMessage) {
+                    noBugsMessage.classList.remove('hidden');
+                } else if (noBugsMessage) {
+                    noBugsMessage.classList.add('hidden');
+                }
+            };
+            
+            // Tab Switching Logic
+            const tabButtons = document.querySelectorAll('.tab-button');
+            const tabContents = document.querySelectorAll('.tab-content');
+            
+            window.showBugTab = (tabName) => {
+                tabContents.forEach(content => content.classList.add('hidden'));
+                tabButtons.forEach(button => button.classList.remove('active'));
+                const selectedContent = document.getElementById(`tab-content-${tabName}`);
+                if (selectedContent) selectedContent.classList.remove('hidden');
+                const selectedButton = document.getElementById(`tab-btn-${tabName}`);
+                if (selectedButton) selectedButton.classList.add('active');
+            };
+            
+            if (document.getElementById('bug-details-container') && document.querySelector('.tab-button')) {
+                showBugTab('comments');
+            }
+            
+            // Status Badge Coloring
+            const setStatusBadgeColor = (element) => {
+                if (!element) return;
+                const statusName = element.getAttribute('data-status-name') || element.textContent.toLowerCase().trim();
+                element.className = element.className.split(' ').filter(c => !c.startsWith('bg-') && !c.startsWith('text-') && c !== 'bg-gray-200' && c !== 'text-gray-700').join(' ');
+                element.classList.add('badge-status');
+                if (statusName.includes('open') || statusName.includes('new')) element.classList.add('bg-red-600', 'text-white', 'shadow-sm');
+                else if (statusName.includes('closed') || statusName.includes('verified')) element.classList.add('bg-green-600', 'text-white', 'shadow-sm');
+                else if (statusName.includes('progress')) element.classList.add('bg-yellow-400', 'text-gray-900', 'shadow-sm');
+                else element.classList.add('bg-gray-200', 'text-gray-700');
+            };
+            
+            if (bugStatusBadge) setStatusBadgeColor(bugStatusBadge);
+            document.querySelectorAll('.bug-list-status').forEach(setStatusBadgeColor);
+            
+            // Event Listeners
+            if (releaseSelector) releaseSelector.addEventListener('change', filterByRelease);
+            if (searchInput) searchInput.addEventListener('input', filterBugs);
+            if (statusFilter) statusFilter.addEventListener('change', filterBugs);
+            if (priorityFilter) priorityFilter.addEventListener('change', filterBugs);
+            if (assigneeFilter) assigneeFilter.addEventListener('change', filterBugs);
+            if (reporterFilter) reporterFilter.addEventListener('change', filterBugs);
+            
+            // Initial filter
+            filterBugs();
+        });
+    </script>
+</body>
+</html>

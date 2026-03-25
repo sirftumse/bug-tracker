@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+
+{% block content %}
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<div class="min-h-screen bg-gray-50 px-4 py-12">
+  <div class="max-w-7xl mx-auto space-y-12">
+
+    <!-- Header -->
+    <header class="flex flex-col items-center py-8 gap-3">
+      <h1 class="text-6xl font-extrabold text-gray-900 tracking-tight drop-shadow-lg">Project Assignments</h1>
+      <p class="text-xl text-gray-500 font-medium">Assign developers and project heads to projects</p>
+    </header>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="space-y-4">
+          {% for category, message in messages %}
+            <div class="rounded-lg p-4 
+              {% if category == 'success' %}bg-green-50 border border-green-200 text-green-800
+              {% elif category == 'danger' %}bg-red-50 border border-red-200 text-red-800
+              {% else %}bg-blue-50 border border-blue-200 text-blue-800{% endif %}">
+              <div class="flex items-center">
+                <i class="fas {% if category == 'success' %}fa-check-circle{% elif category == 'danger' %}fa-exclamation-circle{% else %}fa-info-circle{% endif %} mr-2"></i>
+                <span>{{ message }}</span>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      
+      <!-- Left Column - Assignment Form -->
+      <div class="lg:col-span-5">
+        <div class="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden sticky top-4">
+          <div class="p-4 bg-gradient-to-r from-indigo-500 to-purple-600">
+            <div class="flex items-center">
+              <i class="fas fa-users text-white text-xl mr-3"></i>
+              <h2 class="text-xl font-bold text-white">Assign Users to Project</h2>
+            </div>
+            <p class="text-indigo-100 text-sm mt-1">Select a project and assign developers/project heads</p>
+          </div>
+          
+          <div class="p-6">
+            <form action="{{ url_for('main.manage_project_assignments') }}" method="POST" class="space-y-6">
+              
+              <!-- Project Selection -->
+              <div>
+                <label for="project_id" class="block text-sm font-semibold text-gray-700 mb-2">
+                  <i class="fas fa-folder text-indigo-500 mr-2"></i>Select Project
+                </label>
+                <select name="project_id" id="project_id" required 
+                  class="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 bg-white">
+                  <option value="">-- Select a Project --</option>
+                  {% for project in projects %}
+                    <option value="{{ project.id }}">{{ project.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <!-- User Selection -->
+              <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">
+                  <i class="fas fa-user-check text-indigo-500 mr-2"></i>Assign Users
+                </label>
+                <div class="bg-gray-50 rounded-lg border border-gray-200 p-4 max-h-80 overflow-y-auto">
+                  {% if devs_and_pms %}
+                    <div class="space-y-2">
+                      {% for dev in devs_and_pms %}
+                        <label class="flex items-center p-2 hover:bg-gray-100 rounded-lg transition duration-150 cursor-pointer">
+                          <input type="checkbox" name="user_ids" value="{{ dev.id }}" 
+                                 class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4 mr-3">
+                          <div class="flex-1">
+                            <span class="text-gray-700 font-medium">{{ dev.name }}</span>
+                            <span class="text-xs text-gray-500 ml-2">({{ dev.role.name }})</span>
+                          </div>
+                          <div class="w-8 h-8 rounded-full 
+                            {% if dev.role.name == 'Project Head' %}bg-indigo-100 text-indigo-600
+                            {% else %}bg-blue-100 text-blue-600{% endif %} 
+                            flex items-center justify-center text-xs font-bold">
+                            {{ dev.name[:1] }}
+                          </div>
+                        </label>
+                      {% endfor %}
+                    </div>
+                  {% else %}
+                    <div class="text-center py-8">
+                      <i class="fas fa-user-slash text-gray-300 text-4xl mb-2"></i>
+                      <p class="text-gray-500">No developers or project heads available.</p>
+                    </div>
+                  {% endif %}
+                </div>
+                <p class="text-xs text-gray-500 mt-2">
+                  <i class="fas fa-info-circle mr-1"></i>Select one or more users to assign to the selected project.
+                </p>
+              </div>
+
+              <button type="submit" 
+                class="w-full py-3 rounded-lg bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition duration-150 shadow-md">
+                <i class="fas fa-save mr-2"></i>Save Assignments
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <!-- Info Card -->
+        <div class="mt-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-200">
+          <div class="flex items-start">
+            <i class="fas fa-info-circle text-blue-600 text-xl mr-3 mt-0.5"></i>
+            <div>
+              <h4 class="text-sm font-bold text-blue-800 mb-1">About Project Assignments</h4>
+              <p class="text-xs text-blue-700">Project Heads and Developers assigned to projects will be able to view and manage releases for those projects. Testers are assigned during release creation.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column - Current Assignments -->
+      <div class="lg:col-span-7">
+        <div class="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+          <div class="p-4 bg-gradient-to-r from-gray-700 to-gray-800">
+            <div class="flex items-center">
+              <i class="fas fa-list-check text-white text-xl mr-3"></i>
+              <h2 class="text-xl font-bold text-white">Current Assignments</h2>
+            </div>
+            <p class="text-gray-300 text-sm mt-1">View all projects and their assigned users</p>
+          </div>
+          
+          <div class="p-6">
+            {% if assigned_projects %}
+              <div class="space-y-4">
+                {% for project in assigned_projects %}
+                <div class="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition duration-150">
+                  <div class="bg-gray-50 p-4 border-b border-gray-200">
+                    <div class="flex items-center justify-between">
+                      <div class="flex items-center space-x-3">
+                        <i class="fas fa-folder text-indigo-500 text-lg"></i>
+                        <h3 class="font-bold text-gray-800">{{ project.name }}</h3>
+                        <span class="bg-indigo-100 text-indigo-800 text-xs font-medium px-2 py-0.5 rounded-full">
+                          {{ project.users|length }} user{% if project.users|length != 1 %}s{% endif %}
+                        </span>
+                      </div>
+                      <div class="flex items-center space-x-2">
+                        <i class="fas fa-users text-gray-400 text-sm"></i>
+                        <span class="text-xs text-gray-500">Assigned Team</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="p-4">
+                    {% if project.users %}
+                      <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        {% for user in project.users %}
+                        <div class="flex items-center space-x-3 p-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                          <div class="w-8 h-8 rounded-full 
+                            {% if user.role.name == 'Project Head' %}bg-indigo-100 text-indigo-600
+                            {% elif user.role.name == 'Developer' %}bg-blue-100 text-blue-600
+                            {% else %}bg-gray-100 text-gray-600{% endif %} 
+                            flex items-center justify-center text-sm font-bold">
+                            {{ user.name[:1] }}
+                          </div>
+                          <div class="flex-1">
+                            <p class="text-sm font-medium text-gray-800">{{ user.name }}</p>
+                            <p class="text-xs text-gray-500">{{ user.role.name }}</p>
+                          </div>
+                        </div>
+                        {% endfor %}
+                      </div>
+                    {% else %}
+                      <div class="text-center py-6">
+                        <i class="fas fa-user-plus text-gray-300 text-3xl mb-2"></i>
+                        <p class="text-gray-500 text-sm">No users assigned to this project yet.</p>
+                      </div>
+                    {% endif %}
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
+            {% else %}
+              <div class="text-center py-12">
+                <div class="text-gray-400 mb-4">
+                  <i class="fas fa-project-diagram fa-4x"></i>
+                </div>
+                <h4 class="text-lg font-semibold text-gray-700 mb-2">No Projects Yet</h4>
+                <p class="text-gray-500">Create a project first to start assigning users.</p>
+                <a href="{{ url_for('main.create_project') }}" class="mt-4 inline-block px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
+                  <i class="fas fa-plus-circle mr-2"></i>Create Project
+                </a>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+
+  /* Custom checkbox styling */
+  input[type="checkbox"] {
+    cursor: pointer;
+  }
+  input[type="checkbox"]:checked {
+    background-color: #4f46e5;
+    border-color: #4f46e5;
+  }
+
+  /* Form focus effects */
+  select:focus, button:focus {
+    outline: none;
+    ring: 2px solid #4f46e5;
+  }
+
+  /* Card hover effects */
+  .hover-card {
+    transition: all 0.3s ease;
+  }
+  .hover-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+  }
+</style>
+{% endblock %}
