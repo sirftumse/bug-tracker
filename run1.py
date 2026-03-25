@@ -3,10 +3,6 @@ from app.config import Config
 
 app = create_app(Config)
 
-# This is REQUIRED for gunicorn
-if __name__ != "__main__":
-    application = app
-
 if __name__ == '__main__':
     print("="*50)
     print("Starting Bug Tracker Development Server...")
