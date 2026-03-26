@@ -104,14 +104,22 @@ def login():
             flash('Invalid username or password.', 'danger')
     return render_template('login.html')
 
-@main.route('/logout')
+
+@main.route('/logout', methods=['GET', 'POST'])  # Updated to accept POST
 def logout():
     """Handles user logout."""
     session.pop('user_id', None)
     flash('You have been logged out.', 'info')
     return redirect(url_for('main.login'))
 
+
 @main.route('/')
+def index():
+    """Redirect to dashboard if logged in, else login page."""
+    if 'user_id' in session:
+        return redirect(url_for('main.dashboard'))
+    return redirect(url_for('main.login'))
+
 
 @main.route('/dashboard')
 @login_required
