@@ -121,15 +121,6 @@
             transform: translateY(0);
             transition: opacity 0.2s ease, transform 0.2s ease;
         }
-        .dropdown-exit {
-            opacity: 1;
-            transform: translateY(0);
-        }
-        .dropdown-exit-active {
-            opacity: 0;
-            transform: translateY(-10px);
-            transition: opacity 0.2s ease, transform 0.2s ease;
-        }
     </style>
     
     <style>
@@ -418,7 +409,7 @@
             });
         }, 5000);
         
-        // Confirm logout for form submissions (optional)
+        // Confirm logout for form submissions
         document.querySelectorAll('form[action*="logout"]').forEach(function(form) {
             form.addEventListener('submit', function(e) {
                 if (!confirm('Are you sure you want to logout?')) {
